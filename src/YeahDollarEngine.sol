@@ -93,7 +93,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     function mintY$(uint256 amountY$ToMint) external shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
         s_Y$Minted[msg.sender] += amountY$ToMint;
 
-        revertIfHealthFactorIsBroken(msg.sender);
+        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     function burn$() external {}
@@ -101,9 +101,26 @@ contract YeahDollarEngine is ReentrancyGuard {
     function liquidate() external {}
 
     function gethealthFactor() external view {}
-}
 
-// >------< PRIVATE & INTERNAL FUNCTIONS >-----<
-function revertIfHealthFactorIsBroken(address user) internal view {
-    
+    // >------< PUBLIC FUNCTIONS >-----<
+    function getAccountCollateralValue(address user) public view returns (uint256) {}
+
+    // >------< PRIVATE & INTERNAL VIEW FUNCTIONS >-----<
+    function _getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalY$Minted, uint256 collateralValueInUsd)
+    {
+        totalY$Minted = s_Y$Minted[user];
+    }
+
+    /**
+     * Returns how close to liquidation a user is
+     * If a user goes below 1, they are at risk of getting liquidated
+     */
+    function _healthFactor(address user) private view returns (uint256) {
+        (uint256 totalY$Minted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+    }
+
+    function _revertIfHealthFactorIsBroken(address user) internal view {}
 }

@@ -20,8 +20,11 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__TransferFailed();
 
     // ---------------------------< STATE VARIABLES >------------------------------------------------------------------------------------------------------------------------------>>>
+    // >------< MAPPINGS >-----<
     mapping(address token => address priceFeeds) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => uint256 amountY$Minted) private s_Y$Minted;
+    // >------< IMMUTABLES >-----<
     YeahDollar private immutable i_y$;
 
     // ---------------------------< EVENTS >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -56,6 +59,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     }
 
     // ---------------------------< FUNCTIONS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // >------< EXTERNAL FUNCTIONS >-----<
     function depositCollateralAndMintY$() external {}
 
     /**
@@ -78,15 +82,28 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralFor$() external {}
+    function redeemCollateralForY$() external {}
 
     function redeemCollateral() external {}
 
-    function mintY$() external {}
+    /**
+     * @param amountY$ToMint Amount of Y$ to mint
+     * @notice minting will fail if collateral value > minimum threshold
+     */
+    function mintY$(uint256 amountY$ToMint) external shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
+        s_Y$Minted[msg.sender] += amountY$ToMint;
+
+        revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function burn$() external {}
 
     function liquidate() external {}
 
     function gethealthFactor() external view {}
+}
+
+// >------< PRIVATE & INTERNAL FUNCTIONS >-----<
+function revertIfHealthFactorIsBroken(address user) internal view {
+    
 }

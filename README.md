@@ -1,6 +1,6 @@
-## Foundry
+## YeahDollar...
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**Comprehensive README coming up very soon. Will use this as a guide layout.**
 
 Foundry consists of:
 

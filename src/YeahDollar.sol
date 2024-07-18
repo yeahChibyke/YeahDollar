@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity >= 0.8.0;
 
+// >------< Imports >-----<
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title YeahDollar StableCoin
+/// @title YeahDollar Y$
 /// @author Chukwubuike Victory Chime
 /// @notice This contract is just the ERC20 implementation of the stablecoin, and it will be governed by the YeahDollarEngine
-/// @dev Relative Stability: Pegged to USD
-/// @dev Stablity Mechanism: Algorithmic
-/// @dev Collateral: Exogenous (wETH and wBTC)
+/// @notice Relative Stability: Pegged to USD
+/// @notice Stablity Mechanism: Algorithmic
+/// @notice Collateral: Exogenous (wETH and wBTC)
 contract YeahDollar is ERC20Burnable, Ownable {
     // >------< Errors >------<
     error YeahDollar__AmountMustBeMoreThanZero();

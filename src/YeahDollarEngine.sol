@@ -5,6 +5,7 @@ pragma solidity >= 0.8.0;
 import {YeahDollar} from "./YeahDollar.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /// @title YeahDollarEngine Y$E
 /// @author Chukwubuike Victory Chime
@@ -18,14 +19,26 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__TokenAddressesAndPriceFeedAddressMismatch();
     error YeahDollarEngine__NotAllowedToken();
     error YeahDollarEngine__TransferFailed();
+    error YeahDollarEngine__HealthFactorIsBroken(uint256 healthFactor);
 
     // ---------------------------< STATE VARIABLES >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< MAPPINGS >-----<
+    /// @dev Mapping of token address to pricefeed address
     mapping(address token => address priceFeeds) private s_priceFeeds;
+    /// @dev Mapping of user to amount of collateral deposited
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    /// @dev Mapping of user to amount of Y$ minted
     mapping(address user => uint256 amountY$Minted) private s_Y$Minted;
     // >------< IMMUTABLES >-----<
     YeahDollar private immutable i_y$;
+    // >------< ADDRESSES >-----<
+    address[] private s_collateralTokens;
+    // >------< CONSTANTS >-----<
+    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
 
     // ---------------------------< EVENTS >------------------------------------------------------------------------------------------------------------------------------>>>
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
@@ -53,6 +66,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         // To setup what pricefeeds are allowed; It will be in USD pairs e.g., ETH/USD, BTC/USD. So, any token that doesn't have a pricefeed is not allowed
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
+            s_collateralTokens.push(tokenAddresses[i]);
         }
 
         i_y$ = YeahDollar(y$Address);
@@ -88,7 +102,7 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     /**
      * @param amountY$ToMint Amount of Y$ to mint
-     * @notice minting will fail if collateral value > minimum threshold
+     * @notice Minting will fail if collateral value > minimum threshold
      */
     function mintY$(uint256 amountY$ToMint) external shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
         s_Y$Minted[msg.sender] += amountY$ToMint;
@@ -103,7 +117,20 @@ contract YeahDollarEngine is ReentrancyGuard {
     function gethealthFactor() external view {}
 
     // >------< PUBLIC FUNCTIONS >-----<
-    function getAccountCollateralValue(address user) public view returns (uint256) {}
+    function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
+            address token = s_collateralTokens[i];
+            uint256 amount = s_collateralDeposited[user][token];
+            totalCollateralValueInUsd += getUsdValue(token, amount);
+        }
+        return totalCollateralValueInUsd;
+    }
+
+    function getUsdValue(address token, uint256 amount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 answer,,,) = priceFeed.latestRoundData();
+        return ((uint256(answer) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
 
     // >------< PRIVATE & INTERNAL VIEW FUNCTIONS >-----<
     function _getAccountInformation(address user)
@@ -112,6 +139,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         returns (uint256 totalY$Minted, uint256 collateralValueInUsd)
     {
         totalY$Minted = s_Y$Minted[user];
+        collateralValueInUsd = getAccountCollateralValue(user);
     }
 
     /**
@@ -120,7 +148,15 @@ contract YeahDollarEngine is ReentrancyGuard {
      */
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalY$Minted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralAdjustedForThreshold * PRECISION) / totalY$Minted;
     }
 
-    function _revertIfHealthFactorIsBroken(address user) internal view {}
+    function _revertIfHealthFactorIsBroken(address user) internal view {
+        uint256 userHealthFactor = _healthFactor(user);
+
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
+            revert YeahDollarEngine__HealthFactorIsBroken(userHealthFactor);
+        }
+    }
 }

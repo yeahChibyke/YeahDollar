@@ -20,6 +20,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__NotAllowedToken();
     error YeahDollarEngine__TransferFailed();
     error YeahDollarEngine__HealthFactorIsBroken(uint256 healthFactor);
+    error YeahDollarEngine__MintFailed();
 
     // ---------------------------< STATE VARIABLES >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< MAPPINGS >-----<
@@ -90,8 +91,9 @@ contract YeahDollarEngine is ReentrancyGuard {
 
         emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
 
-        bool successful = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
-        if (!successful) {
+        bool transferSuccessful =
+            IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
+        if (transferSuccessful) {
             revert YeahDollarEngine__TransferFailed();
         }
     }
@@ -108,6 +110,12 @@ contract YeahDollarEngine is ReentrancyGuard {
         s_Y$Minted[msg.sender] += amountY$ToMint;
 
         _revertIfHealthFactorIsBroken(msg.sender);
+
+        bool mintSuccessful = i_y$.mint(msg.sender, amountY$ToMint);
+
+        if (!mintSuccessful) {
+            revert YeahDollarEngine__MintFailed();
+        }
     }
 
     function burn$() external {}

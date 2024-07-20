@@ -4,6 +4,7 @@ pragma solidity >=0.6.2 <0.9.0;
 
 import {Script} from "forge-std/Script.sol";
 import {MockV3Aggregator} from "../test/mocks/MockV3Aggregator.sol";
+import {ERC20Mock} from "../test/mocks/ERC20Mock.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
@@ -16,7 +17,19 @@ contract HelperConfig is Script {
 
     NetworkConfig public activeNetworkConfig;
 
-    constructor() {}
+    uint8 public constant DECIMALS = 8;
+    int256 public constant ETH_USD_MOCK_PRICE = 3500e8;
+    int256 public constant BTC_USD_MOCK_PRICE = 66600e8;
+    uint256 public constant INITIAL_BALANCE = 1000e8;
+    uint256 public constant ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+
+    constructor() {
+        if (block.chainid == 1115511) {
+            activeNetworkConfig = getSepoliaEthConfig();
+        } else {
+            activeNetworkConfig = getAnvilEthConfig();
+        }
+    }
 
     function getSepoliaEthConfig() public view returns (NetworkConfig memory) {
         return NetworkConfig({
@@ -28,9 +41,25 @@ contract HelperConfig is Script {
         });
     }
 
-    function getAnvilEthConfig() public view returns (NetworkConfig memory) {
+    function getAnvilEthConfig() public returns (NetworkConfig memory anvilNetworkConfig) {
         if (activeNetworkConfig.wEthUsdPriceFeed != address(0)) {
             return activeNetworkConfig;
         }
+
+        vm.startBroadcast();
+        MockV3Aggregator ethUsdPriceFeed = new MockV3Aggregator(DECIMALS, ETH_USD_MOCK_PRICE);
+        ERC20Mock wEthMock = new ERC20Mock("WETH", "WETH", msg.sender, INITIAL_BALANCE);
+
+        MockV3Aggregator btcUsdPriceFeed = new MockV3Aggregator(DECIMALS, BTC_USD_MOCK_PRICE);
+        ERC20Mock wBtcMock = new ERC20Mock("WETH", "WETH", msg.sender, INITIAL_BALANCE);
+        vm.stopBroadcast();
+
+        anvilNetworkConfig = NetworkConfig({
+            wEthUsdPriceFeed: address(ethUsdPriceFeed),
+            wBtcUsdPriceFeed: address(btcUsdPriceFeed),
+            wEth: address(wEthMock),
+            wBtc: address(wBtcMock),
+            deployerKey: ANVIL_PRIVATE_KEY
+        });
     }
 }

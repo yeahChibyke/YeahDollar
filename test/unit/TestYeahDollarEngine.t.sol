@@ -5,11 +5,35 @@ import {Test, console2} from "forge-std/Test.sol";
 import {YeahDollarEngine} from "../../src/YeahDollarEngine.sol";
 import {DeployYeahDollar} from "../../script/DeployYeahDollar.s.sol";
 import {YeahDollar} from "../../src/YeahDollar.sol";
+import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 contract TestYeahDollarEngine is Test {
     DeployYeahDollar deployer;
+    YeahDollar yeahDollar;
+    YeahDollarEngine yeahDollarEngine;
+    HelperConfig helperConfig;
+
+    address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
+    address wEth;
+    address wBtc;
+    // uint256 public  ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     function setUp() public {
         deployer = new DeployYeahDollar();
+        (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
+
+        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, ) = helperConfig.activeNetworkConfig();
+    }
+
+    // ---------------------------< PRICE TESTS  
+
+    function testGetEthPerUsdValue() public view {
+        uint256 ethAmount = 25e18;
+        // according to our mock price, 1ETH = $3500
+        uint256 expectedUsdAmount = (ethAmount * 3500);
+        uint256 actualUsdAmount = yeahDollarEngine.getUsdValue(wEth, ethAmount);
+
+        assert(expectedUsdAmount == actualUsdAmount);
     }
 }

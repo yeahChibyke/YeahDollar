@@ -11,7 +11,7 @@ contract DeployYeahDollar is Script {
     address[] public tokenAddresses;
     address[] public priceFeedAddresses;
 
-    function run() external returns (YeahDollar, YeahDollarEngine) {
+    function run() external returns (YeahDollar, YeahDollarEngine, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
 
         (address wEthUsdPriceFeed, address wBtcUsdPriceFeed, address wEth, address wBtc, uint256 deployerKey) =
@@ -26,6 +26,6 @@ contract DeployYeahDollar is Script {
             new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yeahDollar));
         yeahDollar.transferOwnership(address(yeahDollarEngine));
         vm.stopBroadcast();
-        return (yeahDollar, yeahDollarEngine);
+        return (yeahDollar, yeahDollarEngine, helperConfig);
     }
 }

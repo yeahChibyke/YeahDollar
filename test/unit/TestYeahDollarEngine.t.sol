@@ -17,12 +17,17 @@ contract TestYeahDollarEngine is Test {
     address btcUsdPriceFeed;
     address wEth;
     address wBtc;
+    uint256 deployerKey;
+
+    address[] tokenAddresses;
+    address[] priceFeedAddresses;
 
     function setUp() public {
+        yeahDollarEngine = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yeahDollar));
         deployer = new DeployYeahDollar();
         (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
 
-        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc) = helperConfig.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, deployerKey) = helperConfig.activeNetworkConfig();
     }
 
     // ---------------------------< PRICE TESTS

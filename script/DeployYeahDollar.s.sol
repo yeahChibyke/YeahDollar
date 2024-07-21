@@ -14,13 +14,13 @@ contract DeployYeahDollar is Script {
     function run() external returns (YeahDollar, YeahDollarEngine, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
 
-        (address wEthUsdPriceFeed, address wBtcUsdPriceFeed, address wEth, address wBtc, uint256 deployerKey) =
+        (address wEthUsdPriceFeed, address wBtcUsdPriceFeed, address wEth, address wBtc) =
             helperConfig.activeNetworkConfig();
 
         tokenAddresses = [wEth, wBtc];
         priceFeedAddresses = [wEthUsdPriceFeed, wBtcUsdPriceFeed];
 
-        vm.startBroadcast(deployerKey);
+        vm.startBroadcast();
         YeahDollar yeahDollar = new YeahDollar();
         YeahDollarEngine yeahDollarEngine =
             new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yeahDollar));

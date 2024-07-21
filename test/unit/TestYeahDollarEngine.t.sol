@@ -17,16 +17,15 @@ contract TestYeahDollarEngine is Test {
     address btcUsdPriceFeed;
     address wEth;
     address wBtc;
-    // uint256 public  ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     function setUp() public {
         deployer = new DeployYeahDollar();
         (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
 
-        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, ) = helperConfig.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc) = helperConfig.activeNetworkConfig();
     }
 
-    // ---------------------------< PRICE TESTS  
+    // ---------------------------< PRICE TESTS
 
     function testGetEthPerUsdValue() public view {
         uint256 ethAmount = 25e18;

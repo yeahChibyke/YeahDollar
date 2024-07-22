@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
-pragma solidity >= 0.6.0 < 0.9.0;
+pragma solidity 0.8.19;
+// pragma solidity >= 0.6.0 < 0.9.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {YeahDollarEngine} from "../../src/YeahDollarEngine.sol";
@@ -28,6 +29,8 @@ contract TestYeahDollarEngine is Test {
         (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
 
         (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, deployerKey) = helperConfig.activeNetworkConfig();
+
+        
     }
 
     // ---------------------------< PRICE TESTS

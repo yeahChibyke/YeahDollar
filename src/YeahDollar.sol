@@ -2,13 +2,15 @@
 pragma solidity 0.8.19;
 // pragma solidity >=0.6.2 <0.9.0;
 
-// ---------------------------< IMPORTS >------------------------------------------------------------------------------------------------------------------------------>>>
-import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+// ---------------------------< IMPORTS
+// >------------------------------------------------------------------------------------------------------------------------------>>>
+import { ERC20Burnable, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title YeahDollar Y$
 /// @author Chukwubuike Victory Chime
-/// @notice This contract is just the ERC20 implementation of the stablecoin, and it will be governed by the YeahDollarEngine
+/// @notice This contract is just the ERC20 implementation of the stablecoin, and it will be governed by the
+/// YeahDollarEngine
 /// @notice Relative Stability: Pegged to USD
 /// @notice Stablity Mechanism: Algorithmic
 /// @notice Collateral: Exogenous (wETH and wBTC)
@@ -18,10 +20,12 @@ contract YeahDollar is ERC20Burnable, Ownable {
     error YeahDollar__BurnAmountExceedsBalance();
     error YeahDollar__MustNotBeZeroAddress();
 
-    // ---------------------------< CONSTRUCTOR >------------------------------------------------------------------------------------------------------------------------------>>>
-    constructor() ERC20("YeahDollar", "Y$") {}
+    // ---------------------------< CONSTRUCTOR
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
+    constructor() ERC20("YeahDollar", "Y$") { }
 
-    // ---------------------------< FUNCTIONS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< FUNCTIONS
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
 

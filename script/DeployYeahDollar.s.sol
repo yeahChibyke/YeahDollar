@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 // pragma solidity >=0.6.2 <0.9.0;
 
-import {Script} from "forge-std/Script.sol";
-import {YeahDollar} from "../src/YeahDollar.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
-import {YeahDollarEngine} from "../src/YeahDollarEngine.sol";
+import { Script } from "forge-std/Script.sol";
+import { YeahDollar } from "../src/YeahDollar.sol";
+import { HelperConfig } from "./HelperConfig.s.sol";
+import { YeahDollarEngine } from "../src/YeahDollarEngine.sol";
 
 contract DeployYeahDollar is Script {
     address[] public tokenAddresses;

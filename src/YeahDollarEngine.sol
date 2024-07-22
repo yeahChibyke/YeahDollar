@@ -2,20 +2,25 @@
 pragma solidity 0.8.19;
 // pragma solidity >=0.6.2 <0.9.0;
 
-// ---------------------------< IMPORTS >------------------------------------------------------------------------------------------------------------------------------>>>
-import {YeahDollar} from "./YeahDollar.sol";
+// ---------------------------< IMPORTS
+// >------------------------------------------------------------------------------------------------------------------------------>>>
+import { YeahDollar } from "./YeahDollar.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /// @title YeahDollarEngine Y$E
 /// @author Chukwubuike Victory Chime
-/// @notice This contract is the core of the Y$ system. It handles all the logic for minting and redeeming Y$, as well as depositing and withdrawing collateral
+/// @notice This contract is the core of the Y$ system. It handles all the logic for minting and redeeming Y$, as well
+/// as depositing and withdrawing collateral
 /// @notice The Y$E is designed to be as minimal as possible, and ensure the maintenance of 1 Y$ == 1 USD at all times
-/// @notice The Y$ system should always be "overcollateralized", at no point should the value of all collateral < the $ backed value of all the Y$
-/// @notice This contract is based on the MakerDAO DSS system; it is similar to DAI if DAI had no governance, no fees, and was backed by only wETH and wBTC
+/// @notice The Y$ system should always be "overcollateralized", at no point should the value of all collateral < the $
+/// backed value of all the Y$
+/// @notice This contract is based on the MakerDAO DSS system; it is similar to DAI if DAI had no governance, no fees,
+/// and was backed by only wETH and wBTC
 contract YeahDollarEngine is ReentrancyGuard {
-    // ---------------------------< ERRORS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< ERRORS
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     error YeahDollarEngine__ShouldBeMoreThanZero();
     error YeahDollarEngine__TokenAddressesAndPriceFeedAddressMismatch();
     error YeahDollarEngine__NotAllowedToken();
@@ -23,7 +28,8 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__HealthFactorIsBroken(uint256 healthFactor);
     error YeahDollarEngine__MintFailed();
 
-    // ---------------------------< STATE VARIABLES >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< STATE VARIABLES
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< MAPPINGS >-----<
     /// @dev Mapping of token address to pricefeed address
     mapping(address token => address priceFeeds) private s_priceFeeds;
@@ -42,10 +48,12 @@ contract YeahDollarEngine is ReentrancyGuard {
     uint256 private constant LIQUIDATION_PRECISION = 100;
     uint256 private constant MIN_HEALTH_FACTOR = 1;
 
-    // ---------------------------< EVENTS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< EVENTS
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
-    // ---------------------------< MODIFIERS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< MODIFIERS
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     modifier shouldBeMoreThanZero(uint256 amount) {
         if (amount == 0) {
             revert YeahDollarEngine__ShouldBeMoreThanZero();
@@ -60,12 +68,14 @@ contract YeahDollarEngine is ReentrancyGuard {
         _;
     }
 
-    // ---------------------------< CONSTRUCTOR >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< CONSTRUCTOR
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address y$Address) {
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert YeahDollarEngine__TokenAddressesAndPriceFeedAddressMismatch();
         }
-        // To setup what pricefeeds are allowed; It will be in USD pairs e.g., ETH/USD, BTC/USD. So, any token that doesn't have a pricefeed is not allowed
+        // To setup what pricefeeds are allowed; It will be in USD pairs e.g., ETH/USD, BTC/USD. So, any token that
+        // doesn't have a pricefeed is not allowed
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
             s_collateralTokens.push(tokenAddresses[i]);
@@ -74,15 +84,19 @@ contract YeahDollarEngine is ReentrancyGuard {
         i_y$ = YeahDollar(y$Address);
     }
 
-    // ---------------------------< FUNCTIONS >------------------------------------------------------------------------------------------------------------------------------>>>
+    // ---------------------------< FUNCTIONS
+    // >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< EXTERNAL FUNCTIONS >-----<
-    function depositCollateralAndMintY$() external {}
+    function depositCollateralAndMintY$() external { }
 
     /**
      * @param tokenCollateralAddress Address of the token to deposit as collateral
      * @param amountCollateral Amount of collateral to deposit
      */
-    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+    function depositCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    )
         external
         shouldBeMoreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
@@ -99,9 +113,9 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralForY$() external {}
+    function redeemCollateralForY$() external { }
 
-    function redeemCollateral() external {}
+    function redeemCollateral() external { }
 
     /**
      * @param amountY$ToMint Amount of Y$ to mint
@@ -119,11 +133,11 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function burn$() external {}
+    function burn$() external { }
 
-    function liquidate() external {}
+    function liquidate() external { }
 
-    function gethealthFactor() external view {}
+    function gethealthFactor() external view { }
 
     // >------< PUBLIC FUNCTIONS >-----<
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {

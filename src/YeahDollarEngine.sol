@@ -125,7 +125,18 @@ contract YeahDollarEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function burn$() external {}
+    function burn$(uint256 amount) public shouldBeMoreThanZero(amount) {
+        s_Y$Minted[msg.sender] -= amount;
+
+        bool success = i_y$.transferFrom(msg.sender, address(this), amount);
+        if (!success) {
+            revert YeahDollarEngine__TransferFailed();
+        }
+
+        i_y$.burn(amount);
+
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function liquidate() external {}
 

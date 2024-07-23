@@ -7,12 +7,17 @@ import {YeahDollarEngine} from "../../src/YeahDollarEngine.sol";
 import {DeployYeahDollar} from "../../script/DeployYeahDollar.s.sol";
 import {YeahDollar} from "../../src/YeahDollar.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
 contract TestYeahDollarEngine is Test {
     DeployYeahDollar deployer;
     YeahDollar yeahDollar;
     YeahDollarEngine yeahDollarEngine;
     HelperConfig helperConfig;
+
+    address Chibyke = makeAddr("Chibyke");
+    uint256 constant AMOUNT_COLLATERAL = 50e18;
+    uint256 constant STARTING_ERC20_BALANCE = 50e18;
 
     address ethUsdPriceFeed;
     address btcUsdPriceFeed;
@@ -28,6 +33,9 @@ contract TestYeahDollarEngine is Test {
         deployer = new DeployYeahDollar();
         (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
         (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, deployerKey) = helperConfig.activeNetworkConfig();
+
+        // vm.deal(Chibyke, AMOUNT_COLLATERAL);
+        ERC20Mock(wEth).mint(Chibyke, STARTING_ERC20_BALANCE);
     }
 
     // ---------------------------< PRICE TESTS
@@ -38,6 +46,9 @@ contract TestYeahDollarEngine is Test {
         uint256 expectedUsdAmount = (ethAmount * 3500);
         uint256 actualUsdAmount = yeahDollarEngine.getUsdValue(wEth, ethAmount);
 
+        console2.log(expectedUsdAmount);
+        console2.log(actualUsdAmount);
+
         assert(expectedUsdAmount == actualUsdAmount);
     }
 
@@ -47,6 +58,19 @@ contract TestYeahDollarEngine is Test {
         uint256 expectedUsdAmount = (btcAmount * 66_600);
         uint256 actualUsdAmount = yeahDollarEngine.getUsdValue(wBtc, btcAmount);
 
+        console2.log(expectedUsdAmount);
+        console2.log(actualUsdAmount);
+
         assert(expectedUsdAmount == actualUsdAmount);
+    }
+
+    // ---------------------------< DEPOSITCOLLATERAL TESTS
+    function testRevertIfDepositIsZero() public {
+        vm.startPrank(Chibyke);
+        ERC20Mock(wEth).approve(wEth, AMOUNT_COLLATERAL);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
+        yeahDollarEngine.depositCollateral(wEth, 0);
+        vm.stopPrank();
     }
 }

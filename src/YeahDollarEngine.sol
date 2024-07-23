@@ -87,14 +87,41 @@ contract YeahDollarEngine is ReentrancyGuard {
     // ---------------------------< FUNCTIONS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< EXTERNAL FUNCTIONS >-----<
-    function depositCollateralAndMintY$() external {}
+
+    /**
+     * 
+     * @param tokenCollateralAddress Address of the token being deposited as collateral
+     * @param amountCollateral Amount of collateral being deposited
+     * @param amountY$ToMint Amount of Y$ to be minted
+     * @notice This function will deposit collateral and mint Y$ in one transaction 
+     */
+    function depositCollateralAndMintY$(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountY$ToMint
+    ) external {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintY$(amountY$ToMint);
+    }
+
+    function redeemCollateralForY$() external {}
+
+    function redeemCollateral() external {}
+
+    function burn$() external {}
+
+    function liquidate() external {}
+
+    function gethealthFactor() external view {}
+
+    // >------< PUBLIC FUNCTIONS >-----<
 
     /**
      * @param tokenCollateralAddress Address of the token to deposit as collateral
      * @param amountCollateral Amount of collateral to deposit
      */
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
+        public
         shouldBeMoreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -110,15 +137,11 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralForY$() external {}
-
-    function redeemCollateral() external {}
-
     /**
      * @param amountY$ToMint Amount of Y$ to mint
      * @notice Minting will fail if collateral value > minimum threshold
      */
-    function mintY$(uint256 amountY$ToMint) external shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
+    function mintY$(uint256 amountY$ToMint) public shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
         s_Y$Minted[msg.sender] += amountY$ToMint;
 
         _revertIfHealthFactorIsBroken(msg.sender);
@@ -130,13 +153,6 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function burn$() external {}
-
-    function liquidate() external {}
-
-    function gethealthFactor() external view {}
-
-    // >------< PUBLIC FUNCTIONS >-----<
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
         for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];

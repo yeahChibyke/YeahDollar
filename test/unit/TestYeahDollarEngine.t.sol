@@ -34,7 +34,6 @@ contract TestYeahDollarEngine is Test {
         (yeahDollar, yeahDollarEngine, helperConfig) = deployer.run();
         (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, deployerKey) = helperConfig.activeNetworkConfig();
 
-        // vm.deal(Chibyke, AMOUNT_COLLATERAL);
         ERC20Mock(wEth).mint(Chibyke, STARTING_ERC20_BALANCE);
     }
 

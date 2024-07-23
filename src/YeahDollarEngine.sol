@@ -27,6 +27,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__TransferFailed();
     error YeahDollarEngine__HealthFactorIsBroken(uint256 healthFactor);
     error YeahDollarEngine__MintFailed();
+    error YeahDollarEngine__RedeemFailed();
 
     // ---------------------------< STATE VARIABLES
     // >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -51,6 +52,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     // ---------------------------< EVENTS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
 
     // ---------------------------< MODIFIERS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -89,11 +91,11 @@ contract YeahDollarEngine is ReentrancyGuard {
     // >------< EXTERNAL FUNCTIONS >-----<
 
     /**
-     * 
+     *
      * @param tokenCollateralAddress Address of the token being deposited as collateral
      * @param amountCollateral Amount of collateral being deposited
      * @param amountY$ToMint Amount of Y$ to be minted
-     * @notice This function will deposit collateral and mint Y$ in one transaction 
+     * @notice This function will deposit collateral and mint Y$ in one transaction
      */
     function depositCollateralAndMintY$(
         address tokenCollateralAddress,
@@ -106,7 +108,22 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     function redeemCollateralForY$() external {}
 
-    function redeemCollateral() external {}
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        external
+        shouldBeMoreThanZero(amountCollateral)
+        nonReentrant
+        isAllowedToken(tokenCollateralAddress)
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(msg.sender, tokenCollateralAddress, amountCollateral);
+
+        bool redeemSuccessful = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+        if (!redeemSuccessful) {
+            revert YeahDollarEngine__RedeemFailed();
+        }
+
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function burn$() external {}
 

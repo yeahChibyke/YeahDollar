@@ -4,8 +4,8 @@ pragma solidity 0.8.19;
 
 // ---------------------------< IMPORTS
 // >------------------------------------------------------------------------------------------------------------------------------>>>
-import { ERC20Burnable, ERC20 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title YeahDollar Y$
 /// @author Chukwubuike Victory Chime
@@ -22,7 +22,7 @@ contract YeahDollar is ERC20Burnable, Ownable {
 
     // ---------------------------< CONSTRUCTOR
     // >------------------------------------------------------------------------------------------------------------------------------>>>
-    constructor() ERC20("YeahDollar", "Y$") { }
+    constructor() ERC20("YeahDollar", "Y$") {}
 
     // ---------------------------< FUNCTIONS
     // >------------------------------------------------------------------------------------------------------------------------------>>>

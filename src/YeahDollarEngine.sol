@@ -4,10 +4,10 @@ pragma solidity 0.8.19;
 
 // ---------------------------< IMPORTS
 // >------------------------------------------------------------------------------------------------------------------------------>>>
-import { YeahDollar } from "./YeahDollar.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {YeahDollar} from "./YeahDollar.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /// @title YeahDollarEngine Y$E
 /// @author Chukwubuike Victory Chime
@@ -87,16 +87,13 @@ contract YeahDollarEngine is ReentrancyGuard {
     // ---------------------------< FUNCTIONS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
     // >------< EXTERNAL FUNCTIONS >-----<
-    function depositCollateralAndMintY$() external { }
+    function depositCollateralAndMintY$() external {}
 
     /**
      * @param tokenCollateralAddress Address of the token to deposit as collateral
      * @param amountCollateral Amount of collateral to deposit
      */
-    function depositCollateral(
-        address tokenCollateralAddress,
-        uint256 amountCollateral
-    )
+    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         external
         shouldBeMoreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
@@ -108,14 +105,14 @@ contract YeahDollarEngine is ReentrancyGuard {
 
         bool transferSuccessful =
             IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
-        if (transferSuccessful) {
+        if (!transferSuccessful) {
             revert YeahDollarEngine__TransferFailed();
         }
     }
 
-    function redeemCollateralForY$() external { }
+    function redeemCollateralForY$() external {}
 
-    function redeemCollateral() external { }
+    function redeemCollateral() external {}
 
     /**
      * @param amountY$ToMint Amount of Y$ to mint
@@ -133,11 +130,11 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
     }
 
-    function burn$() external { }
+    function burn$() external {}
 
-    function liquidate() external { }
+    function liquidate() external {}
 
-    function gethealthFactor() external view { }
+    function gethealthFactor() external view {}
 
     // >------< PUBLIC FUNCTIONS >-----<
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {

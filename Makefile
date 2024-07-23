@@ -1,5 +1,5 @@
 -include .env
 
-git:
-	git init && git status && git add .
+git:; git init && git status && git add .
+	
 

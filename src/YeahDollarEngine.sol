@@ -91,7 +91,6 @@ contract YeahDollarEngine is ReentrancyGuard {
     // >------< EXTERNAL FUNCTIONS >-----<
 
     /**
-     *
      * @param tokenCollateralAddress Address of the token being deposited as collateral
      * @param amountCollateral Amount of collateral being deposited
      * @param amountY$ToMint Amount of Y$ to be minted
@@ -106,10 +105,25 @@ contract YeahDollarEngine is ReentrancyGuard {
         mintY$(amountY$ToMint);
     }
 
-    function redeemCollateralForY$() external {}
+    /**
+     * @param tokenCollateralAddress Address of the token of the collateral to be redeemed
+     * @param amountCollateral Amount of collateral to be redeemed
+     * @param amountY$ToBurn Amount of Y$ to be burnt
+     * @notice This function will burn Y$ and redeem underlying collateral in one transaction
+     * @dev redeemCollateral() function already has _revertIfHealthIsBroken(), so no to put it 
+     */
+    function redeemCollateralForY$(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountY$ToBurn) external {
+        burnY$(amountY$ToBurn);
+        redeemCollateral(tokenCollateralAddress, amountCollateral);
+    }
 
+    /**
+     * @param tokenCollateralAddress Address of the token of the collateral to be redeemed
+     * @param amountCollateral Amount of collateral to be redeemed
+     * @notice This function will redeem collateral when called
+     */
     function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
+        public
         shouldBeMoreThanZero(amountCollateral)
         nonReentrant
         isAllowedToken(tokenCollateralAddress)
@@ -125,19 +139,6 @@ contract YeahDollarEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function burn$(uint256 amount) public shouldBeMoreThanZero(amount) {
-        s_Y$Minted[msg.sender] -= amount;
-
-        bool success = i_y$.transferFrom(msg.sender, address(this), amount);
-        if (!success) {
-            revert YeahDollarEngine__TransferFailed();
-        }
-
-        i_y$.burn(amount);
-
-        _revertIfHealthFactorIsBroken(msg.sender);
-    }
-
     function liquidate() external {}
 
     function gethealthFactor() external view {}
@@ -147,6 +148,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     /**
      * @param tokenCollateralAddress Address of the token to deposit as collateral
      * @param amountCollateral Amount of collateral to deposit
+     * @notice This function will deposit collateral when called
      */
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         public
@@ -167,6 +169,7 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     /**
      * @param amountY$ToMint Amount of Y$ to mint
+     * @notice This function will mint Y$ when called
      * @notice Minting will fail if collateral value > minimum threshold
      */
     function mintY$(uint256 amountY$ToMint) public shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
@@ -179,6 +182,23 @@ contract YeahDollarEngine is ReentrancyGuard {
         if (!mintSuccessful) {
             revert YeahDollarEngine__MintFailed();
         }
+    }
+
+    /**
+     * @param amountY$ToBurn Amount of Y$ to be burnt
+     * @notice This function will burn Y$ when called
+     */
+    function burnY$(uint256 amountY$ToBurn) public shouldBeMoreThanZero(amountY$ToBurn) {
+        s_Y$Minted[msg.sender] -= amountY$ToBurn;
+
+        bool success = i_y$.transferFrom(msg.sender, address(this), amountY$ToBurn);
+        if (!success) {
+            revert YeahDollarEngine__TransferFailed();
+        }
+
+        i_y$.burn(amountY$ToBurn);
+
+        _revertIfHealthFactorIsBroken(msg.sender); // likelihood of this happening is very very unlikely
     }
 
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {

@@ -183,8 +183,6 @@ contract YeahDollarEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function gethealthFactor() external view {}
-
     // >------------------------------------------------------------------------------------------------------------------------------>>>
 
     // >------< PUBLIC FUNCTIONS >-----<
@@ -264,6 +262,16 @@ contract YeahDollarEngine is ReentrancyGuard {
         (, int256 answer,,,) = priceFeed.latestRoundData();
         return (usdAmountInWei * PRECISION) / (uint256(answer) * ADDITIONAL_FEED_PRECISION);
     }
+
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalYDMinted, uint256 collateralValueInUsd)
+    {
+        (totalYDMinted, collateralValueInUsd) = _getAccountInformation(user);
+    }
+
+    function gethealthFactor() external view {}
 
     // >------------------------------------------------------------------------------------------------------------------------------>>>
 

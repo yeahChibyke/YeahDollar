@@ -15,7 +15,7 @@ contract TestYeahDollarEngine is Test {
     YeahDollarEngine yde;
     HelperConfig helperConfig;
 
-    address Chibyke = makeAddr("Chibyke");
+    address user = makeAddr("user");
     uint256 constant AMOUNT_COLLATERAL = 10e18;
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
 
@@ -34,7 +34,18 @@ contract TestYeahDollarEngine is Test {
         (yd, yde, helperConfig) = deployer.run();
         (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc, deployerKey) = helperConfig.activeNetworkConfig();
 
-        ERC20Mock(wEth).mint(Chibyke, STARTING_ERC20_BALANCE);
+        ERC20Mock(wEth).mint(user, STARTING_ERC20_BALANCE);
+        ERC20Mock(wBtc).mint(user, STARTING_ERC20_BALANCE);
+    }
+
+    // ---------------------------< CONSTRUCTOR TESTS
+    function testRevertIfTokenAndPriceFeedLengthsMismatch() public {
+        tokenAddresses.push(wEth);
+        priceFeedAddresses.push(ethUsdPriceFeed);
+        priceFeedAddresses.push(btcUsdPriceFeed);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__TokenAddressesAndPriceFeedAddressMismatch.selector);
+        new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yd));
     }
 
     // ---------------------------< PRICE TESTS
@@ -42,7 +53,7 @@ contract TestYeahDollarEngine is Test {
     function testGetEthPerUsdValue() public view {
         uint256 ethAmount = 25e18;
         // according to our mock price, 1ETH = $3500
-        uint256 expectedUsdAmount = (ethAmount * 3500);
+        uint256 expectedUsdAmount = (ethAmount * 3_500);
         uint256 actualUsdAmount = yde.getUsdValue(wEth, ethAmount);
 
         console2.log(expectedUsdAmount);
@@ -63,13 +74,71 @@ contract TestYeahDollarEngine is Test {
         assert(expectedUsdAmount == actualUsdAmount);
     }
 
+    function testGetTokenAmountFromUsd() public view {
+        uint256 usdAmount = 100e18;
+        uint256 expectedEthAmount = usdAmount / 3_500;
+        uint256 expectedBtcAmount = usdAmount / 66_600;
+        uint256 actualEthAmount = yde.getTokenAmountFromUsd(wEth, usdAmount);
+        uint256 actualBtcAmount = yde.getTokenAmountFromUsd(wBtc, usdAmount);
+
+        console2.log("The actual ETH amount is: ", actualEthAmount, "ETH");
+        console2.log("The actual BTC amount is: ", actualBtcAmount, "BTC");
+
+        assert(expectedEthAmount == actualEthAmount);
+        assert(expectedBtcAmount == actualBtcAmount);
+    }
+
     // ---------------------------< DEPOSITCOLLATERAL TESTS
     function testRevertIfDepositIsZero() public {
-        vm.startPrank(Chibyke);
-        ERC20Mock(wEth).approve(wEth, AMOUNT_COLLATERAL);
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
 
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
         yde.depositCollateral(wEth, 0);
         vm.stopPrank();
+    }
+
+    function testRevertIfUnapprovedToken() public {
+        ERC20Mock prankToken = new ERC20Mock("PRANK", "PRANK", user, AMOUNT_COLLATERAL);
+        vm.startPrank(user);
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__NotAllowedToken.selector);
+        yde.depositCollateral(address(prankToken), AMOUNT_COLLATERAL);
+    }
+
+    // modifiers to avoid redundancy
+    modifier depositedWEth() {
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateral(wEth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    modifier depositedWBtc() {
+        vm.startPrank(user);
+        ERC20Mock(wBtc).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateral(wBtc, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    function testCanDepositWEthAndGetAccountInfo() public depositedWEth {
+        (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
+
+        uint256 expectedYDMinted = 0; // Because we deposited without minting
+        uint256 expectedDepositAmount = yde.getTokenAmountFromUsd(wEth, collateralValueInUsd);
+
+        assert(totalYDMinted == expectedYDMinted);
+        assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
+    }
+
+    function testCanDepositWBtcAndGetAccountInfo() public depositedWBtc {
+        (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
+
+        uint256 expectedYDMinted = 0; // Because we deposited without minting
+        uint256 expectedDepositAmount = yde.getTokenAmountFromUsd(wBtc, collateralValueInUsd);
+
+        assert(totalYDMinted == expectedYDMinted);
+        assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
     }
 }

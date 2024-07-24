@@ -9,13 +9,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-/// @title YeahDollarEngine Y$E
+/// @title YeahDollarEngine YDE
 /// @author Chukwubuike Victory Chime
-/// @notice This contract is the core of the Y$ system. It handles all the logic for minting and redeeming Y$, as well
+/// @notice This contract is the core of the YD system. It handles all the logic for minting and redeeming YD, as well
 /// as depositing and withdrawing collateral
-/// @notice The Y$E is designed to be as minimal as possible, and ensure the maintenance of 1 Y$ == 1 USD at all times
-/// @notice The Y$ system should always be "overcollateralized", at no point should the value of all collateral < the $
-/// backed value of all the Y$
+/// @notice The YDE is designed to be as minimal as possible, and ensure the maintenance of 1 YD == 1 USD at all times
+/// @notice The YD system should always be "overcollateralized", at no point should the value of all collateral < the D
+/// backed value of all the YD
 /// @notice This contract is based on the MakerDAO DSS system; it is similar to DAI if DAI had no governance, no fees,
 /// and was backed by only wETH and wBTC
 contract YeahDollarEngine is ReentrancyGuard {
@@ -37,10 +37,10 @@ contract YeahDollarEngine is ReentrancyGuard {
     mapping(address token => address priceFeeds) private s_priceFeeds;
     /// @dev Mapping of user to amount of collateral deposited
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
-    /// @dev Mapping of user to amount of Y$ minted
-    mapping(address user => uint256 amountY$Minted) private s_Y$Minted;
+    /// @dev Mapping of user to amount of YD minted
+    mapping(address user => uint256 amountYDMinted) private s_YDMinted;
     // >------< IMMUTABLES >-----<
-    YeahDollar private immutable i_y$;
+    YeahDollar private immutable i_yd;
     // >------< ADDRESSES >-----<
     address[] private s_collateralTokens;
     // >------< CONSTANTS >-----<
@@ -54,7 +54,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     // ---------------------------< EVENTS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event CollateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(address indexed redeemedFrom, address indexed redeemedTo, address indexed token, uint256  amount);
 
     // ---------------------------< MODIFIERS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -74,7 +74,7 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     // ---------------------------< CONSTRUCTOR
     // >------------------------------------------------------------------------------------------------------------------------------>>>
-    constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address y$Address) {
+    constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address yDAddress) {
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert YeahDollarEngine__TokenAddressesAndPriceFeedAddressMismatch();
         }
@@ -85,7 +85,7 @@ contract YeahDollarEngine is ReentrancyGuard {
             s_collateralTokens.push(tokenAddresses[i]);
         }
 
-        i_y$ = YeahDollar(y$Address);
+        i_yd = YeahDollar(yDAddress);
     }
 
     // ---------------------------< FUNCTIONS
@@ -95,29 +95,29 @@ contract YeahDollarEngine is ReentrancyGuard {
     /**
      * @param tokenCollateralAddress Address of the token being deposited as collateral
      * @param amountCollateral Amount of collateral being deposited
-     * @param amountY$ToMint Amount of Y$ to be minted
-     * @notice This function will deposit collateral and mint Y$ in one transaction
+     * @param amountYDToMint Amount of YD to be minted
+     * @notice This function will deposit collateral and mint YD in one transaction
      */
-    function depositCollateralAndMintY$(
+    function depositCollateralAndMintYD(
         address tokenCollateralAddress,
         uint256 amountCollateral,
-        uint256 amountY$ToMint
+        uint256 amountYDToMint
     ) external {
         depositCollateral(tokenCollateralAddress, amountCollateral);
-        mintY$(amountY$ToMint);
+        mintYD(amountYDToMint);
     }
 
     /**
      * @param tokenCollateralAddress Address of the token of the collateral to be redeemed
      * @param amountCollateral Amount of collateral to be redeemed
-     * @param amountY$ToBurn Amount of Y$ to be burnt
-     * @notice This function will burn Y$ and redeem underlying collateral in one transaction
+     * @param amountYDToBurn Amount of YD to be burnt
+     * @notice This function will burn YD and redeem underlying collateral in one transaction
      * @dev redeemCollateral() function already has _revertIfHealthIsBroken(), so no to put it
      */
-    function redeemCollateralForY$(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountY$ToBurn)
+    function redeemCollateralForYD(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountYDToBurn)
         external
     {
-        burnY$(amountY$ToBurn);
+        burnYD(amountYDToBurn);
         redeemCollateral(tokenCollateralAddress, amountCollateral);
     }
 
@@ -132,13 +132,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         nonReentrant
         isAllowedToken(tokenCollateralAddress)
     {
-        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
-        emit CollateralRedeemed(msg.sender, tokenCollateralAddress, amountCollateral);
-
-        bool redeemSuccessful = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
-        if (!redeemSuccessful) {
-            revert YeahDollarEngine__RedeemFailed();
-        }
+        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
 
         _revertIfHealthFactorIsBroken(msg.sender);
     }
@@ -146,7 +140,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     /**
      * @param collateralAddress Address of the ERC20 collateral to liquidate from the user
      * @param user Address of the user to be liquidated. Their _healthFactor should be below MIN_HEALTH_FACTOR
-     * @param debtToCover Amount of Y$ to be burnt to improve `user` health factor
+     * @param debtToCover Amount of YD to be burnt to improve `user` health factor
      * @notice A user can be partially liquidated
      * @notice & @dev There is a liquidation bonus for liquidating a user
      * @dev The protocol has to be roughly 200% over-collaterized for this function to work
@@ -165,14 +159,16 @@ contract YeahDollarEngine is ReentrancyGuard {
         }
 
         // We need to know the USD equivalent of debt to be covered.
-        //      E.g. If covering $100 of Y$, we need to know what the ETH equivalent of that debt is
+        //      E.g. If covering D100 of YD, we need to know what the ETH equivalent of that debt is
         uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateralAddress, debtToCover);
 
         // We also want to give liquidators a 10% bonus
-        //      i.e., They are getting 110 wETH for 100 Y$
+        //      i.e., They are getting 110 wETH for 100 YD
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
 
         uint256 totalCollateralToRedeem = bonusCollateral + tokenAmountFromDebtCovered;
+
+        _redeemCollateral(collateralAddress, totalCollateralToRedeem, user, msg.sender);
     }
 
     function gethealthFactor() external view {}
@@ -202,16 +198,16 @@ contract YeahDollarEngine is ReentrancyGuard {
     }
 
     /**
-     * @param amountY$ToMint Amount of Y$ to mint
-     * @notice This function will mint Y$ when called
+     * @param amountYDToMint Amount of YD to mint
+     * @notice This function will mint YD when called
      * @notice Minting will fail if collateral value > minimum threshold
      */
-    function mintY$(uint256 amountY$ToMint) public shouldBeMoreThanZero(amountY$ToMint) nonReentrant {
-        s_Y$Minted[msg.sender] += amountY$ToMint;
+    function mintYD(uint256 amountYDToMint) public shouldBeMoreThanZero(amountYDToMint) nonReentrant {
+        s_YDMinted[msg.sender] += amountYDToMint;
 
         _revertIfHealthFactorIsBroken(msg.sender);
 
-        bool mintSuccessful = i_y$.mint(msg.sender, amountY$ToMint);
+        bool mintSuccessful = i_yd.mint(msg.sender, amountYDToMint);
 
         if (!mintSuccessful) {
             revert YeahDollarEngine__MintFailed();
@@ -219,18 +215,18 @@ contract YeahDollarEngine is ReentrancyGuard {
     }
 
     /**
-     * @param amountY$ToBurn Amount of Y$ to be burnt
-     * @notice This function will burn Y$ when called
+     * @param amountYDToBurn Amount of YD to be burnt
+     * @notice This function will burn YD when called
      */
-    function burnY$(uint256 amountY$ToBurn) public shouldBeMoreThanZero(amountY$ToBurn) {
-        s_Y$Minted[msg.sender] -= amountY$ToBurn;
+    function burnYD(uint256 amountYDToBurn) public shouldBeMoreThanZero(amountYDToBurn) {
+        s_YDMinted[msg.sender] -= amountYDToBurn;
 
-        bool success = i_y$.transferFrom(msg.sender, address(this), amountY$ToBurn);
+        bool success = i_yd.transferFrom(msg.sender, address(this), amountYDToBurn);
         if (!success) {
             revert YeahDollarEngine__TransferFailed();
         }
 
-        i_y$.burn(amountY$ToBurn);
+        i_yd.burn(amountYDToBurn);
 
         _revertIfHealthFactorIsBroken(msg.sender); // likelihood of this happening is very very unlikely
     }
@@ -262,9 +258,9 @@ contract YeahDollarEngine is ReentrancyGuard {
     function _getAccountInformation(address user)
         private
         view
-        returns (uint256 totalY$Minted, uint256 collateralValueInUsd)
+        returns (uint256 totalYDMinted, uint256 collateralValueInUsd)
     {
-        totalY$Minted = s_Y$Minted[user];
+        totalYDMinted = s_YDMinted[user];
         collateralValueInUsd = getAccountCollateralValue(user);
     }
 
@@ -273,9 +269,9 @@ contract YeahDollarEngine is ReentrancyGuard {
      * If a user goes below 1, they are at risk of getting liquidated
      */
     function _healthFactor(address user) private view returns (uint256) {
-        (uint256 totalY$Minted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        (uint256 totalYDMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        return (collateralAdjustedForThreshold * PRECISION) / totalY$Minted;
+        return (collateralAdjustedForThreshold * PRECISION) / totalYDMinted;
     }
 
     function _revertIfHealthFactorIsBroken(address user) internal view {
@@ -284,5 +280,19 @@ contract YeahDollarEngine is ReentrancyGuard {
         if (userHealthFactor < MIN_HEALTH_FACTOR) {
             revert YeahDollarEngine__HealthFactorIsBroken(userHealthFactor);
         }
+    }
+
+    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to) private {
+        s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(from, to,tokenCollateralAddress, amountCollateral);
+
+        bool redeemSuccessful = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
+        if (!redeemSuccessful) {
+            revert YeahDollarEngine__RedeemFailed();
+        }
+    }
+
+    function _burnYD(uint256 amountYDToBurn, address onBehalfOf, address yDFrom) private {
+
     }
 }

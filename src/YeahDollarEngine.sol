@@ -28,6 +28,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__HealthFactorIsBroken(uint256 healthFactor);
     error YeahDollarEngine__MintFailed();
     error YeahDollarEngine__RedeemFailed();
+    error YeahDollarEngine__HealthFactorIsHealthy();
 
     // ---------------------------< STATE VARIABLES
     // >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -47,7 +48,8 @@ contract YeahDollarEngine is ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_PRECISION = 100;
-    uint256 private constant MIN_HEALTH_FACTOR = 1;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private LIQUIDATION_BONUS = 10; // This mean a 10% bonus
 
     // ---------------------------< EVENTS
     // >------------------------------------------------------------------------------------------------------------------------------>>>
@@ -110,9 +112,11 @@ contract YeahDollarEngine is ReentrancyGuard {
      * @param amountCollateral Amount of collateral to be redeemed
      * @param amountY$ToBurn Amount of Y$ to be burnt
      * @notice This function will burn Y$ and redeem underlying collateral in one transaction
-     * @dev redeemCollateral() function already has _revertIfHealthIsBroken(), so no to put it 
+     * @dev redeemCollateral() function already has _revertIfHealthIsBroken(), so no to put it
      */
-    function redeemCollateralForY$(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountY$ToBurn) external {
+    function redeemCollateralForY$(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountY$ToBurn)
+        external
+    {
         burnY$(amountY$ToBurn);
         redeemCollateral(tokenCollateralAddress, amountCollateral);
     }
@@ -139,7 +143,37 @@ contract YeahDollarEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function liquidate() external {}
+    /**
+     * @param collateralAddress Address of the ERC20 collateral to liquidate from the user
+     * @param user Address of the user to be liquidated. Their _healthFactor should be below MIN_HEALTH_FACTOR
+     * @param debtToCover Amount of Y$ to be burnt to improve `user` health factor
+     * @notice A user can be partially liquidated
+     * @notice & @dev There is a liquidation bonus for liquidating a user
+     * @dev The protocol has to be roughly 200% over-collaterized for this function to work
+     * @dev A known bug would be; if the protocol were 100% or less-collaterized, we wouldn't be able to incentivize liquidators.
+     *      E.g. If the price of the collateral plummetted before liquidation could take place
+     */
+    function liquidate(address collateralAddress, address user, uint256 debtToCover)
+        external
+        shouldBeMoreThanZero(debtToCover)
+        nonReentrant
+    {
+        // check to see that `user` is in fact liquidatable
+        uint256 initialUserHealthFactor = _healthFactor(user);
+        if (initialUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert YeahDollarEngine__HealthFactorIsHealthy();
+        }
+
+        // We need to know the USD equivalent of debt to be covered.
+        //      E.g. If covering $100 of Y$, we need to know what the ETH equivalent of that debt is
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateralAddress, debtToCover);
+
+        // We also want to give liquidators a 10% bonus
+        //      i.e., They are getting 110 wETH for 100 Y$
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+
+        uint256 totalCollateralToRedeem = bonusCollateral + tokenAmountFromDebtCovered;
+    }
 
     function gethealthFactor() external view {}
 
@@ -214,6 +248,14 @@ contract YeahDollarEngine is ReentrancyGuard {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 answer,,,) = priceFeed.latestRoundData();
         return ((uint256(answer) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
+
+    // >------< PUBLIC & EXTERNAL VIEW FUNCTIONS >-----<
+
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 answer,,,) = priceFeed.latestRoundData();
+        return (usdAmountInWei * PRECISION) / (uint256(answer) * ADDITIONAL_FEED_PRECISION);
     }
 
     // >------< PRIVATE & INTERNAL VIEW FUNCTIONS >-----<

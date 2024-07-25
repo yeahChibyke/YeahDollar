@@ -174,9 +174,4 @@ contract TestYeahDollarEngine is Test {
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
         yde.mintYD(0, wEth);
     }
-
-    // ---------------------------< REDEEM TESTS
-
-    function testRedeemCollateral() public depositedWBtc {
-    }
 }

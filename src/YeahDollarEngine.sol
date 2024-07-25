@@ -28,6 +28,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__RedeemFailed();
     error YeahDollarEngine__HealthFactorIsHealthy();
     error YeahDollarEngine__HealthFactorNotIproved();
+    error YeahDollarEngine__AmountToMintMoreThanDepositCollateral();
 
     // ---------------------------< STATE VARIABLES
     // >------< CONSTANTS >-----<
@@ -75,6 +76,15 @@ contract YeahDollarEngine is ReentrancyGuard {
         _;
     }
 
+    // Added this
+    modifier mintAmountMustBeLessOrEqualToUserDepositCollateral(uint256 amount, address tokenCollateralAddress) {
+        uint256 depCollateral = s_collateralDeposited[msg.sender][tokenCollateralAddress];
+        if (amount > depCollateral) {
+            revert YeahDollarEngine__AmountToMintMoreThanDepositCollateral();
+        }
+        _;
+    }
+
     // >------------------------------------------------------------------------------------------------------------------------------>>>
 
     // ---------------------------< CONSTRUCTOR
@@ -106,9 +116,9 @@ contract YeahDollarEngine is ReentrancyGuard {
         address tokenCollateralAddress,
         uint256 amountCollateral,
         uint256 amountYDToMint
-    ) external {
+    ) external mintAmountMustBeLessOrEqualToUserDepositCollateral(amountYDToMint, tokenCollateralAddress) {
         depositCollateral(tokenCollateralAddress, amountCollateral);
-        mintYD(amountYDToMint);
+        mintYD(amountYDToMint, tokenCollateralAddress);
     }
 
     /**
@@ -214,7 +224,7 @@ contract YeahDollarEngine is ReentrancyGuard {
      * @notice This function will mint YD when called
      * @notice Minting will fail if collateral value > minimum threshold
      */
-    function mintYD(uint256 amountYDToMint) public shouldBeMoreThanZero(amountYDToMint) nonReentrant {
+    function mintYD(uint256 amountYDToMint, address tokenCollateralAddress) public shouldBeMoreThanZero(amountYDToMint) nonReentrant mintAmountMustBeLessOrEqualToUserDepositCollateral(amountYDToMint, tokenCollateralAddress) {
         s_YDMinted[msg.sender] += amountYDToMint;
 
         _revertIfHealthFactorIsBroken(msg.sender);

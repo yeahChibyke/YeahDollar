@@ -122,6 +122,8 @@ contract TestYeahDollarEngine is Test {
         _;
     }
 
+    // ---------------------------< MINT TESTS
+
     function testCanDepositWEthAndGetAccountInfo() public depositedWEth {
         (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
 
@@ -140,5 +142,41 @@ contract TestYeahDollarEngine is Test {
 
         assert(totalYDMinted == expectedYDMinted);
         assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
+    }
+
+    function testCanMintAndGetAccountInfo() public depositedWEth {
+        uint256 mintAmount = 5e18;
+
+        vm.startPrank(user);
+
+        yde.mintYD(mintAmount, wEth);
+        (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
+        uint256 expectedDepositAmount = yde.getTokenAmountFromUsd(wEth, collateralValueInUsd);
+        uint256 userCollateralBalance = expectedDepositAmount - mintAmount;
+
+        assert(totalYDMinted == mintAmount);
+        assert(expectedDepositAmount == AMOUNT_COLLATERAL);
+        assert(userCollateralBalance == 5e18);
+    }
+
+    function testRevertIfWantToMintMoreThanCollateralDeposit() public depositedWEth {
+        uint256 mintAmount = 20e18;
+
+        vm.startPrank(user);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__AmountToMintMoreThanDepositCollateral.selector);
+        yde.mintYD(mintAmount, wEth);
+    }
+
+    function testRevertIfWantToMintZero() public depositedWEth {
+        vm.startPrank(user);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
+        yde.mintYD(0, wEth);
+    }
+
+    // ---------------------------< REDEEM TESTS
+
+    function testRedeemCollateral() public depositedWBtc {
     }
 }

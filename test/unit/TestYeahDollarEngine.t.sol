@@ -10,17 +10,24 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 import {MockFailedMintYD} from "../mocks/MockFailedMintYD.sol";
+import {MockFailedTransferFrom} from "../mocks/MockFailedTransferFrom.sol";
 
 contract TestYeahDollarEngine is Test {
+    event CollateralRedeemed(
+        address indexed redeemedFrom, address indexed redeemedTo, address indexed token, uint256 amount
+    ); // If redeemedFrom != redeemedTo, then it was liquidated
+
     DeployYeahDollar deployer;
     YeahDollar yd;
     YeahDollarEngine yde;
     HelperConfig helperConfig;
 
-    address user = makeAddr("user");
-    uint256 constant AMOUNT_COLLATERAL = 10e18;
+    uint256 mintAmount = 100e18; // Remember, mint amount is in YD; which is in a ratio of 1 YD == 1 $. So this is not 100 wETH, but actually 100 YD (or 100 $)
+
+    uint256 constant AMOUNT_COLLATERAL = 10e18; // Remember, deposits are in either wETH or wBTC. So this could either be 10 wETH or 10 wBTC
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
-    uint256 mintAmount = 200e18;
+
+    address user = makeAddr("user");
 
     address ethUsdPriceFeed;
     address btcUsdPriceFeed;
@@ -40,9 +47,8 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< CONSTRUCTOR TESTS
 
-    
     address[] tokenAddresses;
-    address[] priceFeedAddresses; 
+    address[] priceFeedAddresses;
 
     function testRevertIfTokenAndPriceFeedLengthsMismatch() public {
         tokenAddresses.push(wEth);
@@ -148,10 +154,30 @@ contract TestYeahDollarEngine is Test {
         assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
     }
 
-    // This test needs it won setup
+    // This test needs it own setup
     function testRevertIfTransferFromFails() public {
         // Arrange setup
-        
+        address owner = msg.sender;
+        vm.prank(owner);
+        MockFailedTransferFrom mockYD = new MockFailedTransferFrom();
+        tokenAddresses = [address(mockYD)];
+        priceFeedAddresses = [ethUsdPriceFeed];
+
+        vm.prank(owner);
+        YeahDollarEngine mockYDE = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(mockYD));
+        mockYD.mint(user, AMOUNT_COLLATERAL);
+
+        vm.prank(owner);
+        mockYD.transferOwnership(address(mockYDE));
+
+        // Arrange user
+        vm.prank(user);
+        ERC20Mock(address(mockYD)).approve(address(mockYDE), AMOUNT_COLLATERAL);
+
+        // Act / Assert
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__TransferFailed.selector);
+        mockYDE.depositCollateral(address(mockYD), AMOUNT_COLLATERAL);
+        vm.stopPrank();
     }
 
     // ---------------------------< MINT TESTS
@@ -180,13 +206,11 @@ contract TestYeahDollarEngine is Test {
 
     function testRevertIfMintAmountBreaksHealthFactor() public depositedWEth {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
-        mintAmount =
-            (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
+        mintAmount = (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
 
         vm.startPrank(user);
 
-        uint256 expectedHealthFactor =
-            yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+        uint256 expectedHealthFactor = yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -226,14 +250,12 @@ contract TestYeahDollarEngine is Test {
     // Why?????????
     function testRevertIfMintedYDBreaksHealthFactor() public {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
-        mintAmount =
-            (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
+        mintAmount = (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
 
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
 
-        uint256 expectedHealthFactor =
-            yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+        uint256 expectedHealthFactor = yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -245,8 +267,6 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    // This modifier should throw up a revert whenever used because of the amount to mint is more than the amount deposited. Why is it not throwing up a revert? 
-    // WHY???????????
     modifier depositedCollateralAndMintedYD() {
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
@@ -262,4 +282,65 @@ contract TestYeahDollarEngine is Test {
 
         assert(userBalance == mintAmount);
     }
+
+    // ---------------------------< BURNYD TESTS
+
+    function testRevertIfBurnAmountisZero() public depositedCollateralAndMintedYD {
+        vm.startPrank(user);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
+        yde.burnYD(0);
+
+        vm.stopPrank();
+    }
+
+    function testCannotBurnMoreThanUserHasMinted() public {
+        vm.startPrank(user);
+
+        vm.expectRevert();
+        yde.burnYD(1);
+
+        vm.stopPrank();
+    }
+
+    function testCanBurnYD() public depositedCollateralAndMintedYD {
+        uint256 userYDBalanceBeforeBurning = yd.balanceOf(user);
+        assert(userYDBalanceBeforeBurning == mintAmount);
+
+        vm.startPrank(user);
+
+        yd.approve(address(yde), mintAmount);
+        yde.burnYD(mintAmount);
+
+        vm.stopPrank();
+
+        uint256 userYDBalanceAfterBurning = yd.balanceOf(user);
+
+        assert(userYDBalanceAfterBurning == 0);
+        assert(userYDBalanceBeforeBurning > userYDBalanceAfterBurning);
+    }
+
+    // ---------------------------< REDEEMCOLLATERAL TESTS
+
+    function testRevertIfRedeemAmountIsZero() public depositedWEth {
+        vm.startPrank(user);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
+        yde.redeemCollateral(wEth, 0);
+
+        vm.stopPrank();
+    }
+
+    function testCanRedeemCollateral() public depositedWEth {
+        vm.startPrank(user);
+
+        yde.redeemCollateral(wEth, AMOUNT_COLLATERAL);
+        uint256 userCollateralBalance = ERC20Mock(wEth).balanceOf(user);
+
+        assert(userCollateralBalance == AMOUNT_COLLATERAL);
+
+        vm.stopPrank();
+    }
+
+    function testWillEmitCollateralRedeemedEventCorrectly() public depositedWEth {}
 }

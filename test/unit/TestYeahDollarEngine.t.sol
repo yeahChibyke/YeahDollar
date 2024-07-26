@@ -9,6 +9,7 @@ import {YeahDollar} from "../../src/YeahDollar.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
+import {MockFailedMintYD} from "../mocks/MockFailedMintYD.sol";
 
 contract TestYeahDollarEngine is Test {
     DeployYeahDollar deployer;
@@ -19,16 +20,13 @@ contract TestYeahDollarEngine is Test {
     address user = makeAddr("user");
     uint256 constant AMOUNT_COLLATERAL = 10e18;
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
-    uint256 mintAmountThatBreaksHealthFactor = 200e18;
+    uint256 mintAmount = 200e18;
 
     address ethUsdPriceFeed;
     address btcUsdPriceFeed;
     address wEth;
     address wBtc;
     uint256 deployerKey;
-
-    address[] tokenAddresses;
-    address[] priceFeedAddresses;
 
     function setUp() public {
         yde = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yd));
@@ -41,6 +39,11 @@ contract TestYeahDollarEngine is Test {
     }
 
     // ---------------------------< CONSTRUCTOR TESTS
+
+    
+    address[] tokenAddresses;
+    address[] priceFeedAddresses; 
+
     function testRevertIfTokenAndPriceFeedLengthsMismatch() public {
         tokenAddresses.push(wEth);
         priceFeedAddresses.push(ethUsdPriceFeed);
@@ -145,19 +148,25 @@ contract TestYeahDollarEngine is Test {
         assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
     }
 
+    // This test needs it won setup
+    function testRevertIfTransferFromFails() public {
+        // Arrange setup
+        
+    }
+
     // ---------------------------< MINT TESTS
 
     function testCanMintAndGetAccountInfo() public depositedWEth {
-        uint256 mintAmount = 5e18;
+        uint256 amountToBeMinted = 5e18;
 
         vm.startPrank(user);
 
-        yde.mintYD(mintAmount);
+        yde.mintYD(amountToBeMinted);
         (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
         uint256 expectedDepositAmount = yde.getTokenAmountFromUsd(wEth, collateralValueInUsd);
-        uint256 userCollateralBalance = expectedDepositAmount - mintAmount;
+        uint256 userCollateralBalance = expectedDepositAmount - amountToBeMinted;
 
-        assert(totalYDMinted == mintAmount);
+        assert(totalYDMinted == amountToBeMinted);
         assert(expectedDepositAmount == AMOUNT_COLLATERAL);
         assert(userCollateralBalance == 5e18);
     }
@@ -171,26 +180,45 @@ contract TestYeahDollarEngine is Test {
 
     function testRevertIfMintAmountBreaksHealthFactor() public depositedWEth {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
-        mintAmountThatBreaksHealthFactor =
+        mintAmount =
             (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
 
         vm.startPrank(user);
 
         uint256 expectedHealthFactor =
-            yde.calculateHealthFactor(mintAmountThatBreaksHealthFactor, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+            yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 YeahDollarEngine.YeahDollarEngine__HealthFactorIsBroken.selector, expectedHealthFactor
             )
         );
-        yde.mintYD(mintAmountThatBreaksHealthFactor);
+        yde.mintYD(mintAmount);
 
         vm.stopPrank();
     }
 
     // This test needs its own setup
-    function testRevertIfMintFails() public {}
+    function testRevertIfMintFails() public {
+        // Arrange the setup
+        MockFailedMintYD mockYD = new MockFailedMintYD();
+        tokenAddresses = [wEth];
+        priceFeedAddresses = [ethUsdPriceFeed];
+        address owner = msg.sender;
+
+        vm.prank(owner);
+        YeahDollarEngine mockYDE = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(mockYD));
+        mockYD.transferOwnership(address(mockYDE));
+
+        // Arrange user
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(mockYDE), AMOUNT_COLLATERAL);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__MintFailed.selector);
+        mockYDE.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
+
+        vm.stopPrank();
+    }
 
     // ---------------------------< DEPOSITCOLLATERALANDMINTYD TESTS
 
@@ -198,21 +226,21 @@ contract TestYeahDollarEngine is Test {
     // Why?????????
     function testRevertIfMintedYDBreaksHealthFactor() public {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
-        mintAmountThatBreaksHealthFactor =
+        mintAmount =
             (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
 
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
 
         uint256 expectedHealthFactor =
-            yde.calculateHealthFactor(mintAmountThatBreaksHealthFactor, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+            yde.calculateHealthFactor(mintAmount, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 YeahDollarEngine.YeahDollarEngine__HealthFactorIsBroken.selector, expectedHealthFactor
             )
         );
-        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmountThatBreaksHealthFactor);
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
 
         vm.stopPrank();
     }
@@ -222,7 +250,7 @@ contract TestYeahDollarEngine is Test {
     modifier depositedCollateralAndMintedYD() {
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
-        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmountThatBreaksHealthFactor);
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
         vm.stopPrank();
         _;
     }
@@ -232,6 +260,6 @@ contract TestYeahDollarEngine is Test {
 
         console2.log(userBalance);
 
-        assert(userBalance == mintAmountThatBreaksHealthFactor);
+        assert(userBalance == mintAmount);
     }
 }

@@ -349,9 +349,9 @@ contract TestYeahDollarEngine is Test {
         address owner = msg.sender;
 
         vm.startPrank(owner);
-        
+
         MockFailedTransfer mockYD = new MockFailedTransfer();
-        tokenAddresses = [address(mockYD)]; 
+        tokenAddresses = [address(mockYD)];
         priceFeedAddresses = [ethUsdPriceFeed];
         YeahDollarEngine mockYDE = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(mockYD));
         mockYD.mint(user, AMOUNT_COLLATERAL);
@@ -374,4 +374,28 @@ contract TestYeahDollarEngine is Test {
 
     // will write you later
     // function testWillEmitCollateralRedeemedEventCorrectly() public depositedWEth {}
+
+    // ---------------------------< REDEEMCOLLATERALFORYD TESTS
+
+    function testRevertIfWantToRedeemZero() public depositedCollateralAndMintedYD {
+        vm.startPrank(user);
+
+        yd.approve(address(yde), 5);
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
+        yde.redeemCollateralForYD(wEth, 0, 5);
+
+        vm.stopPrank();
+    }
+
+    function testRevertIfWantToRedeemUnapprovedToken() public depositedCollateralAndMintedYD{
+        ERC20Mock prankToken = new ERC20Mock("PRANK", "PRANK", user, AMOUNT_COLLATERAL);
+
+        vm.startPrank(user);
+
+        yd.approve(address(yde), 5);
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__NotAllowedToken.selector);
+        yde.redeemCollateralForYD(address(prankToken), 0, 5);
+
+        vm.stopPrank();
+    }
 }

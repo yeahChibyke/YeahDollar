@@ -113,30 +113,32 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     /**
      * @param tokenCollateralAddress Address of the token of the collateral to be redeemed
-     * @param amountCollateral Amount of collateral to be redeemed
+     * @param amountToRedeem Amount of collateral to be redeemed
      * @param amountYDToBurn Amount of YD to be burnt
      * @notice This function will burn YD and redeem/withdraw underlying collateral in one transaction
      */
-    function redeemCollateralForYD(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountYDToBurn)
+    function redeemCollateralForYD(address tokenCollateralAddress, uint256 amountToRedeem, uint256 amountYDToBurn)
         external
+        isAllowedToken(tokenCollateralAddress)
+        shouldBeMoreThanZero(amountToRedeem)
     {
         _burnYD(amountYDToBurn, msg.sender, msg.sender);
-        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _redeemCollateral(tokenCollateralAddress, amountToRedeem, msg.sender, msg.sender);
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     /**
      * @param tokenCollateralAddress Address of the token of the collateral to be redeemed
-     * @param amountCollateral Amount of collateral to be redeemed
+     * @param amountToRedeem Amount of collateral to be redeemed
      * @notice This function will redeem collateral when called
      */
-    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountToRedeem)
         public
-        shouldBeMoreThanZero(amountCollateral)
+        shouldBeMoreThanZero(amountToRedeem)
         nonReentrant
         isAllowedToken(tokenCollateralAddress)
     {
-        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _redeemCollateral(tokenCollateralAddress, amountToRedeem, msg.sender, msg.sender);
 
         _revertIfHealthFactorIsBroken(msg.sender);
     }

@@ -382,7 +382,7 @@ contract TestYeahDollarEngine is Test {
 
         yd.approve(address(yde), 5);
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
-        yde.redeemCollateralForYD(wEth, 0, 5);
+        yde.redeemCollateralForYD(wEth, 0, mintAmount);
 
         vm.stopPrank();
     }
@@ -394,8 +394,22 @@ contract TestYeahDollarEngine is Test {
 
         yd.approve(address(yde), 5);
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__NotAllowedToken.selector);
-        yde.redeemCollateralForYD(address(prankToken), 0, 5);
+        yde.redeemCollateralForYD(address(prankToken), AMOUNT_COLLATERAL, mintAmount);
 
         vm.stopPrank();
+    }
+
+    function testCanRedeemDepositedCollateral() public {
+        vm.startPrank(user);
+
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
+        yd.approve(address(yde), mintAmount);
+        yde.redeemCollateralForYD(wEth, AMOUNT_COLLATERAL, mintAmount);
+
+        vm.stopPrank();
+
+        uint256 userYDBalance = yd.balanceOf(user);
+        assert(userYDBalance == 0);
     }
 }

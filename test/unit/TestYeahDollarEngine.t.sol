@@ -8,6 +8,7 @@ import {DeployYeahDollar} from "../../script/DeployYeahDollar.s.sol";
 import {YeahDollar} from "../../src/YeahDollar.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract TestYeahDollarEngine is Test {
     DeployYeahDollar deployer;
@@ -18,6 +19,7 @@ contract TestYeahDollarEngine is Test {
     address user = makeAddr("user");
     uint256 constant AMOUNT_COLLATERAL = 10e18;
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
+    uint256 mintAmountThatBreaksHealthFactor = 200e18;
 
     address ethUsdPriceFeed;
     address btcUsdPriceFeed;
@@ -88,23 +90,6 @@ contract TestYeahDollarEngine is Test {
         assert(expectedBtcAmount == actualBtcAmount);
     }
 
-    // modifiers to avoid redundancy
-    modifier depositedWEth() {
-        vm.startPrank(user);
-        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
-        yde.depositCollateral(wEth, AMOUNT_COLLATERAL);
-        vm.stopPrank();
-        _;
-    }
-
-    modifier depositedWBtc() {
-        vm.startPrank(user);
-        ERC20Mock(wBtc).approve(address(yde), AMOUNT_COLLATERAL);
-        yde.depositCollateral(wBtc, AMOUNT_COLLATERAL);
-        vm.stopPrank();
-        _;
-    }
-
     // ---------------------------< DEPOSITCOLLATERAL TESTS
 
     function testRevertIfDepositIsZero() public {
@@ -121,6 +106,23 @@ contract TestYeahDollarEngine is Test {
         vm.startPrank(user);
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__NotAllowedToken.selector);
         yde.depositCollateral(address(prankToken), AMOUNT_COLLATERAL);
+    }
+
+    // modifiers to avoid redundancy
+    modifier depositedWEth() {
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateral(wEth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    modifier depositedWBtc() {
+        vm.startPrank(user);
+        ERC20Mock(wBtc).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateral(wBtc, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
     }
 
     function testCanDepositWEthAndGetAccountInfo() public depositedWEth {
@@ -160,8 +162,6 @@ contract TestYeahDollarEngine is Test {
         assert(userCollateralBalance == 5e18);
     }
 
-   
-
     function testRevertIfWantToMintZero() public depositedWEth {
         vm.startPrank(user);
 
@@ -169,5 +169,69 @@ contract TestYeahDollarEngine is Test {
         yde.mintYD(0);
     }
 
-    // ---------------------------<  TESTS
+    function testRevertIfMintAmountBreaksHealthFactor() public depositedWEth {
+        (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
+        mintAmountThatBreaksHealthFactor =
+            (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
+
+        vm.startPrank(user);
+
+        uint256 expectedHealthFactor =
+            yde.calculateHealthFactor(mintAmountThatBreaksHealthFactor, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                YeahDollarEngine.YeahDollarEngine__HealthFactorIsBroken.selector, expectedHealthFactor
+            )
+        );
+        yde.mintYD(mintAmountThatBreaksHealthFactor);
+
+        vm.stopPrank();
+    }
+
+    // This test needs its own setup
+    function testRevertIfMintFails() public {}
+
+    // ---------------------------< DEPOSITCOLLATERALANDMINTYD TESTS
+
+    // This test fails if I use any of the deposit modifiers I created (depositedWEth or depositedWBtc)
+    // Why?????????
+    function testRevertIfMintedYDBreaksHealthFactor() public {
+        (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
+        mintAmountThatBreaksHealthFactor =
+            (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
+
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+
+        uint256 expectedHealthFactor =
+            yde.calculateHealthFactor(mintAmountThatBreaksHealthFactor, yde.getUsdValue(wEth, AMOUNT_COLLATERAL));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                YeahDollarEngine.YeahDollarEngine__HealthFactorIsBroken.selector, expectedHealthFactor
+            )
+        );
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmountThatBreaksHealthFactor);
+
+        vm.stopPrank();
+    }
+
+    // This modifier should throw up a revert whenever used because of the amount to mint is more than the amount deposited. Why is it not throwing up a revert? 
+    // WHY???????????
+    modifier depositedCollateralAndMintedYD() {
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmountThatBreaksHealthFactor);
+        vm.stopPrank();
+        _;
+    }
+
+    function testCanMintWithDepositedCollateral() public depositedCollateralAndMintedYD {
+        uint256 userBalance = yd.balanceOf(user);
+
+        console2.log(userBalance);
+
+        assert(userBalance == mintAmountThatBreaksHealthFactor);
+    }
 }

@@ -224,11 +224,7 @@ contract YeahDollarEngine is ReentrancyGuard {
      * @notice This function will mint YD when called
      * @notice Minting will fail if collateral value > minimum threshold
      */
-    function mintYD(uint256 amountYDToMint)
-        public
-        shouldBeMoreThanZero(amountYDToMint)
-        nonReentrant
-    {
+    function mintYD(uint256 amountYDToMint) public shouldBeMoreThanZero(amountYDToMint) nonReentrant {
         s_YDMinted[msg.sender] += amountYDToMint;
 
         _revertIfHealthFactorIsBroken(msg.sender);

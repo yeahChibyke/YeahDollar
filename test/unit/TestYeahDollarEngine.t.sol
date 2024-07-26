@@ -11,6 +11,7 @@ import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 import {MockFailedMintYD} from "../mocks/MockFailedMintYD.sol";
 import {MockFailedTransferFrom} from "../mocks/MockFailedTransferFrom.sol";
+import {MockFailedTransfer} from "../mocks/MockFailedTransfer.sol";
 
 contract TestYeahDollarEngine is Test {
     event CollateralRedeemed(
@@ -342,5 +343,35 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testWillEmitCollateralRedeemedEventCorrectly() public depositedWEth {}
+    // This test needs its own setup
+    function testRevertIfTransferFails() public {
+        // Arrange
+        address owner = msg.sender;
+
+        vm.startPrank(owner);
+        
+        MockFailedTransfer mockYD = new MockFailedTransfer();
+        tokenAddresses = [address(mockYD)]; 
+        priceFeedAddresses = [ethUsdPriceFeed];
+        YeahDollarEngine mockYDE = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(mockYD));
+        mockYD.mint(user, AMOUNT_COLLATERAL);
+        mockYD.transferOwnership(address(mockYDE));
+
+        vm.stopPrank();
+
+        // Arrange user
+        vm.startPrank(user);
+        ERC20Mock(address(mockYD)).approve(address(mockYDE), AMOUNT_COLLATERAL);
+
+        // Act / Assert
+        mockYDE.depositCollateral(address(mockYD), AMOUNT_COLLATERAL);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__RedeemFailed.selector);
+        mockYDE.redeemCollateral(address(mockYD), AMOUNT_COLLATERAL);
+
+        vm.stopPrank();
+    }
+
+    // will write you later
+    // function testWillEmitCollateralRedeemedEventCorrectly() public depositedWEth {}
 }

@@ -28,7 +28,6 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__RedeemFailed();
     error YeahDollarEngine__HealthFactorIsHealthy();
     error YeahDollarEngine__HealthFactorNotIproved();
-    error YeahDollarEngine__AmountToMintMoreThanDepositCollateral();
 
     // ---------------------------< STATE VARIABLES
     // >------< CONSTANTS >-----<
@@ -76,15 +75,6 @@ contract YeahDollarEngine is ReentrancyGuard {
         _;
     }
 
-    // Added this
-    modifier mintAmountMustBeLessOrEqualToUserDepositCollateral(uint256 amount, address tokenCollateralAddress) {
-        uint256 depCollateral = s_collateralDeposited[msg.sender][tokenCollateralAddress];
-        if (amount > depCollateral) {
-            revert YeahDollarEngine__AmountToMintMoreThanDepositCollateral();
-        }
-        _;
-    }
-
     // >------------------------------------------------------------------------------------------------------------------------------>>>
 
     // ---------------------------< CONSTRUCTOR
@@ -116,9 +106,9 @@ contract YeahDollarEngine is ReentrancyGuard {
         address tokenCollateralAddress,
         uint256 amountCollateral,
         uint256 amountYDToMint
-    ) external mintAmountMustBeLessOrEqualToUserDepositCollateral(amountYDToMint, tokenCollateralAddress) {
+    ) external {
         depositCollateral(tokenCollateralAddress, amountCollateral);
-        mintYD(amountYDToMint, tokenCollateralAddress);
+        mintYD(amountYDToMint);
     }
 
     /**
@@ -234,11 +224,10 @@ contract YeahDollarEngine is ReentrancyGuard {
      * @notice This function will mint YD when called
      * @notice Minting will fail if collateral value > minimum threshold
      */
-    function mintYD(uint256 amountYDToMint, address tokenCollateralAddress)
+    function mintYD(uint256 amountYDToMint)
         public
         shouldBeMoreThanZero(amountYDToMint)
         nonReentrant
-        mintAmountMustBeLessOrEqualToUserDepositCollateral(amountYDToMint, tokenCollateralAddress)
     {
         s_YDMinted[msg.sender] += amountYDToMint;
 
@@ -401,7 +390,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         return s_priceFeeds[token];
     }
 
-    function gethealthFactor(address user) external view returns(uint256) {
+    function gethealthFactor(address user) external view returns (uint256) {
         return _healthFactor(user);
     }
 }

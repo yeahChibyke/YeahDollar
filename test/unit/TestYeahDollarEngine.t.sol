@@ -27,6 +27,9 @@ contract TestYeahDollarEngine is Test {
 
     uint256 constant AMOUNT_COLLATERAL = 10e18; // Remember, deposits are in either wETH or wBTC. So this could either be 10 wETH or 10 wBTC
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
+    uint256 constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 constant LIQUIDATION_THRESHOLD = 50;
+    uint256 private constant LIQUIDATION_PRECISION = 100;
 
     address user = makeAddr("user");
 
@@ -411,5 +414,46 @@ contract TestYeahDollarEngine is Test {
 
         uint256 userYDBalance = yd.balanceOf(user);
         assert(userYDBalance == 0);
+    }
+
+    // ---------------------------< VIEW AND PURE TESTS
+
+    function testGetCollateralPriceFeed() public view {
+        address ethPriceFeed = yde.getCollateralTokenPriceFeed(wEth);
+        address btcPriceFeed = yde.getCollateralTokenPriceFeed(wBtc);
+
+        assert(ethPriceFeed == ethUsdPriceFeed);
+        assert(btcPriceFeed == btcUsdPriceFeed);
+    }
+
+    function testGetCollateralTokens() public view {
+        address[] memory collateralTokens = yde.getCollateralTokens();
+
+        assert(collateralTokens[0] == wEth);
+        assert(collateralTokens[1] == wBtc);
+    }
+
+    function testGetminHealthFactor() public view {
+        uint256 actualMinHealthFactor = yde.getMinHealthFactor();
+
+        assert(actualMinHealthFactor == MIN_HEALTH_FACTOR);
+    }
+
+    function testGetLiquidationThreshold() public view {
+        uint256 actualLiquidationThreshold = yde.getLiquidationThreshold();
+
+        assert(actualLiquidationThreshold == LIQUIDATION_THRESHOLD);
+    }
+
+    function testGetLiquidationPrecision() public view {
+        uint256 actualLiquidationPrecision = yde.getLiquidationPrecision();
+
+        assert(actualLiquidationPrecision == LIQUIDATION_PRECISION);
+    }
+
+    function testGetYD() public view {
+        address ydAddress = yde.getYD();
+
+        assert(ydAddress == address(yd));
     }
 }

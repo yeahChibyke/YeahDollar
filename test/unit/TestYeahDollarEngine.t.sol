@@ -12,6 +12,7 @@ import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 import {MockFailedMintYD} from "../mocks/MockFailedMintYD.sol";
 import {MockFailedTransferFrom} from "../mocks/MockFailedTransferFrom.sol";
 import {MockFailedTransfer} from "../mocks/MockFailedTransfer.sol";
+import {MockMoreDebtYD} from "../mocks/MockMoreDebtYD.sol";
 
 contract TestYeahDollarEngine is Test {
     event CollateralRedeemed(
@@ -37,6 +38,10 @@ contract TestYeahDollarEngine is Test {
     address wEth;
     address wBtc;
     uint256 deployerKey;
+
+    // Liquidation
+    address public liquidator = makeAddr("liquidator");
+    uint256 public collateralToCover = 20 ether;
 
     function setUp() public {
         yde = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yd));
@@ -417,7 +422,116 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< LIQUIDATION TESTS
 
-    
+    // This test needs it own setup
+    function testHealthFactorImproveWhenLiquidationHappens() public {
+        // Arrange the setup
+        MockMoreDebtYD mockYD = new MockMoreDebtYD(ethUsdPriceFeed);
+        tokenAddresses = [wEth];
+        priceFeedAddresses = [ethUsdPriceFeed];
+        address owner = msg.sender;
+
+        vm.prank(owner);
+        YeahDollarEngine mockYDE = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(mockYD));
+
+        mockYD.transferOwnership(address(mockYDE));
+
+        // Arrange the user
+        vm.startPrank(user);
+
+        ERC20Mock(wEth).approve(address(mockYDE), AMOUNT_COLLATERAL);
+        mockYDE.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
+
+        vm.stopPrank();
+
+        // Arrange the liquidator
+        collateralToCover = 1 ether;
+        ERC20Mock(wEth).mint(liquidator, collateralToCover);
+
+        vm.startPrank(liquidator);
+
+        ERC20Mock(wEth).approve(address(mockYDE), collateralToCover);
+        uint256 debtToCover = 10 ether;
+        mockYDE.depositCollateralAndMintYD(wEth, collateralToCover, mintAmount);
+        mockYD.approve(address(mockYDE), debtToCover);
+
+        // Act
+        int256 ethUsdUpdatedPrice = 18e8; // 1 ETH = $18
+        MockV3Aggregator(ethUsdPriceFeed).updateAnswer(ethUsdUpdatedPrice);
+
+        // Act/Assert
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__HealthFactorNotImproved.selector);
+        mockYDE.liquidate(wEth, user, debtToCover);
+        vm.stopPrank();
+    }
+
+    function testRevertIfWantToLiquidateGoodHealthFactor() public depositedCollateralAndMintedYD {
+        ERC20Mock(wEth).mint(liquidator, collateralToCover);
+
+        vm.startPrank(liquidator);
+
+        ERC20Mock(wEth).approve(address(yde), collateralToCover);
+        yde.depositCollateralAndMintYD(wEth, collateralToCover, mintAmount);
+        yd.approve(address(yde), mintAmount);
+
+        vm.expectRevert(YeahDollarEngine.YeahDollarEngine__HealthFactorIsHealthy.selector);
+        yde.liquidate(wEth, user, mintAmount);
+
+        vm.stopPrank();
+    }
+
+    modifier modafuckaHasBeenLiquidated() {
+        vm.startPrank(user);
+        ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
+        yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
+        vm.stopPrank();
+        int256 ethUsdUpdatedPrice = 18e8; // 1 ETH = $18
+
+        MockV3Aggregator(ethUsdPriceFeed).updateAnswer(ethUsdUpdatedPrice);
+        uint256 userHealthFactor = yde.getHealthFactor(user);
+
+        ERC20Mock(wEth).mint(liquidator, collateralToCover);
+
+        vm.startPrank(liquidator);
+        ERC20Mock(wEth).approve(address(yde), collateralToCover);
+        yde.depositCollateralAndMintYD(wEth, collateralToCover, mintAmount);
+        yd.approve(address(yde), mintAmount);
+        yde.liquidate(wEth, user, mintAmount); // We are covering their whole debt
+        vm.stopPrank();
+        _;
+    }
+
+    function testLiquidationPayoutIsAccurate() public modafuckaHasBeenLiquidated {
+        uint256 liquidatorWethBalance = ERC20Mock(wEth).balanceOf(liquidator);
+        uint256 expectedWEth = yde.getTokenAmountFromUsd(wEth, mintAmount)
+            + (yde.getTokenAmountFromUsd(wEth, mintAmount) / yde.getLiquidationBonus());
+        uint256 hardCodedExpected = 6_111_111_111_111_111_110;
+        assertEq(liquidatorWethBalance, hardCodedExpected);
+        assertEq(liquidatorWethBalance, expectedWEth);
+    }
+
+    function testUserStillHasSomeEthAfterLiquidation() public modafuckaHasBeenLiquidated {
+        // Get how much WETH the user lost
+        uint256 amountLiquidated = yde.getTokenAmountFromUsd(wEth, mintAmount)
+            + (yde.getTokenAmountFromUsd(wEth, mintAmount) / yde.getLiquidationBonus());
+
+        uint256 usdAmountLiquidated = yde.getUsdValue(wEth, amountLiquidated);
+        uint256 expectedUserCollateralValueInUsd = yde.getUsdValue(wEth, AMOUNT_COLLATERAL) - (usdAmountLiquidated);
+
+        (, uint256 userCollateralValueInUsd) = yde.getAccountInformation(user);
+        uint256 hardCodedExpectedValue = 70_000_000_000_000_000_020;
+        assertEq(userCollateralValueInUsd, expectedUserCollateralValueInUsd);
+        assertEq(userCollateralValueInUsd, hardCodedExpectedValue);
+    }
+
+    function testLiquidatorTakesOnUsersDebt() public modafuckaHasBeenLiquidated {
+        (uint256 liquidYDMinted,) = yde.getAccountInformation(liquidator);
+        assertEq(liquidYDMinted, mintAmount);
+    }
+
+    function testUserHasNoMoreDebt() public modafuckaHasBeenLiquidated {
+        (uint256 userYDMinted,) = yde.getAccountInformation(user);
+        assertEq(userYDMinted, 0);
+    }
 
     // ---------------------------< VIEW AND PURE TESTS
 

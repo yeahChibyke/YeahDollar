@@ -27,7 +27,7 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__MintFailed();
     error YeahDollarEngine__RedeemFailed();
     error YeahDollarEngine__HealthFactorIsHealthy();
-    error YeahDollarEngine__HealthFactorNotIproved();
+    error YeahDollarEngine__HealthFactorNotImproved();
 
     // ---------------------------< STATE VARIABLES
     // >------< CONSTANTS >-----<
@@ -189,7 +189,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         uint256 finalUserHealthFactor = _healthFactor(user);
         // This condition should never hit, but no harm in being too careful
         if (finalUserHealthFactor <= initialUserHealthFactor) {
-            revert YeahDollarEngine__HealthFactorNotIproved();
+            revert YeahDollarEngine__HealthFactorNotImproved();
         }
 
         _revertIfHealthFactorIsBroken(msg.sender);
@@ -388,7 +388,7 @@ contract YeahDollarEngine is ReentrancyGuard {
         return s_priceFeeds[token];
     }
 
-    function gethealthFactor(address user) external view returns (uint256) {
+    function getHealthFactor(address user) external view returns (uint256) {
         return _healthFactor(user);
     }
 }

@@ -275,7 +275,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    modifier depositedCollateralAndMintedYD() {
+    modifier modafuckaDepositedCollateralAndMintedYD() {
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
         yde.depositCollateralAndMintYD(wEth, AMOUNT_COLLATERAL, mintAmount);
@@ -283,7 +283,7 @@ contract TestYeahDollarEngine is Test {
         _;
     }
 
-    function testCanMintWithDepositedCollateral() public depositedCollateralAndMintedYD {
+    function testCanMintWithDepositedCollateral() public modafuckaDepositedCollateralAndMintedYD {
         uint256 userBalance = yd.balanceOf(user);
 
         console2.log(userBalance);
@@ -293,7 +293,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< BURNYD TESTS
 
-    function testRevertIfBurnAmountisZero() public depositedCollateralAndMintedYD {
+    function testRevertIfBurnAmountisZero() public modafuckaDepositedCollateralAndMintedYD {
         vm.startPrank(user);
 
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
@@ -311,7 +311,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testCanBurnYD() public depositedCollateralAndMintedYD {
+    function testCanBurnYD() public modafuckaDepositedCollateralAndMintedYD {
         uint256 userYDBalanceBeforeBurning = yd.balanceOf(user);
         assert(userYDBalanceBeforeBurning == mintAmount);
 
@@ -384,7 +384,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< REDEEMCOLLATERALFORYD TESTS
 
-    function testRevertIfWantToRedeemZero() public depositedCollateralAndMintedYD {
+    function testRevertIfWantToRedeemZero() public modafuckaDepositedCollateralAndMintedYD {
         vm.startPrank(user);
 
         yd.approve(address(yde), 5);
@@ -394,7 +394,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testRevertIfWantToRedeemUnapprovedToken() public depositedCollateralAndMintedYD {
+    function testRevertIfWantToRedeemUnapprovedToken() public modafuckaDepositedCollateralAndMintedYD {
         ERC20Mock prankToken = new ERC20Mock("PRANK", "PRANK", user, AMOUNT_COLLATERAL);
 
         vm.startPrank(user);
@@ -464,7 +464,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testRevertIfWantToLiquidateGoodHealthFactor() public depositedCollateralAndMintedYD {
+    function testRevertIfWantToLiquidateGoodHealthFactor() public modafuckaDepositedCollateralAndMintedYD {
         ERC20Mock(wEth).mint(liquidator, collateralToCover);
 
         vm.startPrank(liquidator);

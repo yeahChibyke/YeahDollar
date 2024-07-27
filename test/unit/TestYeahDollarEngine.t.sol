@@ -126,7 +126,7 @@ contract TestYeahDollarEngine is Test {
     }
 
     // modifiers to avoid redundancy
-    modifier depositedWEth() {
+    modifier modafuckaDepositedWEth() {
         vm.startPrank(user);
         ERC20Mock(wEth).approve(address(yde), AMOUNT_COLLATERAL);
         yde.depositCollateral(wEth, AMOUNT_COLLATERAL);
@@ -142,7 +142,7 @@ contract TestYeahDollarEngine is Test {
         _;
     }
 
-    function testCanDepositWEthAndGetAccountInfo() public depositedWEth {
+    function testCanDepositWEthAndGetAccountInfo() public modafuckaDepositedWEth {
         (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
 
         uint256 expectedYDMinted = 0; // Because we deposited without minting
@@ -190,7 +190,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< MINT TESTS
 
-    function testCanMintAndGetAccountInfo() public depositedWEth {
+    function testCanMintAndGetAccountInfo() public modafuckaDepositedWEth {
         uint256 amountToBeMinted = 5e18;
 
         vm.startPrank(user);
@@ -205,14 +205,14 @@ contract TestYeahDollarEngine is Test {
         assert(userCollateralBalance == 5e18);
     }
 
-    function testRevertIfWantToMintZero() public depositedWEth {
+    function testRevertIfWantToMintZero() public modafuckaDepositedWEth {
         vm.startPrank(user);
 
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
         yde.mintYD(0);
     }
 
-    function testRevertIfMintAmountBreaksHealthFactor() public depositedWEth {
+    function testRevertIfMintAmountBreaksHealthFactor() public modafuckaDepositedWEth {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
         mintAmount = (AMOUNT_COLLATERAL * (uint256(answer) * yde.getAdditionalFeedPrecision())) / yde.getPrecision();
 
@@ -254,7 +254,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< DEPOSITCOLLATERALANDMINTYD TESTS
 
-    // This test fails if I use any of the deposit modifiers I created (depositedWEth or depositedWBtc)
+    // This test fails if I use any of the deposit modifiers I created (modafuckaDepositedWEth or depositedWBtc)
     // Why?????????
     function testRevertIfMintedYDBreaksHealthFactor() public {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
@@ -330,7 +330,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< REDEEMCOLLATERAL TESTS
 
-    function testRevertIfRedeemAmountIsZero() public depositedWEth {
+    function testRevertIfRedeemAmountIsZero() public modafuckaDepositedWEth {
         vm.startPrank(user);
 
         vm.expectRevert(YeahDollarEngine.YeahDollarEngine__ShouldBeMoreThanZero.selector);
@@ -339,7 +339,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testCanRedeemCollateral() public depositedWEth {
+    function testCanRedeemCollateral() public modafuckaDepositedWEth {
         vm.startPrank(user);
 
         yde.redeemCollateral(wEth, AMOUNT_COLLATERAL);
@@ -380,7 +380,7 @@ contract TestYeahDollarEngine is Test {
     }
 
     // will write you later
-    // function testWillEmitCollateralRedeemedEventCorrectly() public depositedWEth {}
+    // function testWillEmitCollateralRedeemedEventCorrectly() public modafuckaDepositedWEth {}
 
     // ---------------------------< REDEEMCOLLATERALFORYD TESTS
 
@@ -575,13 +575,13 @@ contract TestYeahDollarEngine is Test {
         assertEq(actualLiquidationPrecision, expectedLiquidationPrecision);
     }
 
-    function testGetCollateralBalanceOfUser() public depositedWEth {
+    function testGetCollateralBalanceOfUser() public modafuckaDepositedWEth {
         uint256 collateralBalanceOfUser = yde.getCollateralBalanceOfUser(user, wEth);
 
         assert(collateralBalanceOfUser == AMOUNT_COLLATERAL);
     }
 
-    function testGetAccountCollateralValue() public depositedWEth {
+    function testGetAccountCollateralValue() public modafuckaDepositedWEth {
         uint256 collateralValue = yde.getAccountCollateralValue(user);
         uint256 expectedCollateralValue = yde.getUsdValue(wEth, AMOUNT_COLLATERAL);
 

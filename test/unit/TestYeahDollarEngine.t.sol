@@ -134,7 +134,7 @@ contract TestYeahDollarEngine is Test {
         _;
     }
 
-    modifier depositedWBtc() {
+    modifier modafuckaDepositedWBtc() {
         vm.startPrank(user);
         ERC20Mock(wBtc).approve(address(yde), AMOUNT_COLLATERAL);
         yde.depositCollateral(wBtc, AMOUNT_COLLATERAL);
@@ -152,7 +152,7 @@ contract TestYeahDollarEngine is Test {
         assert(expectedDepositAmount == AMOUNT_COLLATERAL); // Since we didn't mint our deposit, the deposit amount should equal the AMOUNT_COLLATERAL, which is the amount deposited as per the modifier
     }
 
-    function testCanDepositWBtcAndGetAccountInfo() public depositedWBtc {
+    function testCanDepositWBtcAndGetAccountInfo() public modafuckaDepositedWBtc {
         (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(user);
 
         uint256 expectedYDMinted = 0; // Because we deposited without minting
@@ -254,7 +254,7 @@ contract TestYeahDollarEngine is Test {
 
     // ---------------------------< DEPOSITCOLLATERALANDMINTYD TESTS
 
-    // This test fails if I use any of the deposit modifiers I created (modafuckaDepositedWEth or depositedWBtc)
+    // This test fails if I use any of the deposit modifiers I created (modafuckaDepositedWEth or modafuckaDepositedWBtc)
     // Why?????????
     function testRevertIfMintedYDBreaksHealthFactor() public {
         (, int256 answer,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();

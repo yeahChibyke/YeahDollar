@@ -29,7 +29,6 @@ contract TestYeahDollarEngine is Test {
     uint256 constant STARTING_ERC20_BALANCE = 10e18;
     uint256 constant MIN_HEALTH_FACTOR = 1e18;
     uint256 constant LIQUIDATION_THRESHOLD = 50;
-    uint256 private constant LIQUIDATION_PRECISION = 100;
 
     address user = makeAddr("user");
 
@@ -390,7 +389,7 @@ contract TestYeahDollarEngine is Test {
         vm.stopPrank();
     }
 
-    function testRevertIfWantToRedeemUnapprovedToken() public depositedCollateralAndMintedYD{
+    function testRevertIfWantToRedeemUnapprovedToken() public depositedCollateralAndMintedYD {
         ERC20Mock prankToken = new ERC20Mock("PRANK", "PRANK", user, AMOUNT_COLLATERAL);
 
         vm.startPrank(user);
@@ -445,22 +444,29 @@ contract TestYeahDollarEngine is Test {
         assert(actualLiquidationThreshold == LIQUIDATION_THRESHOLD);
     }
 
-    function testGetLiquidationPrecision() public view {
-        uint256 actualLiquidationPrecision = yde.getLiquidationPrecision();
-
-        assert(actualLiquidationPrecision == LIQUIDATION_PRECISION);
-    }
-
     function testGetYD() public view {
         address ydAddress = yde.getYD();
 
         assert(ydAddress == address(yd));
     }
 
-    function testLiquidationPrecision() public view {
+    function testGetLiquidationPrecision() public view {
         uint256 expectedLiquidationPrecision = 100;
         uint256 actualLiquidationPrecision = yde.getLiquidationPrecision();
 
         assertEq(actualLiquidationPrecision, expectedLiquidationPrecision);
+    }
+
+    function testGetCollateralBalanceOfUser() public depositedWEth {
+        uint256 collateralBalanceOfUser = yde.getCollateralBalanceOfUser(user, wEth);
+
+        assert(collateralBalanceOfUser == AMOUNT_COLLATERAL);
+    }
+
+    function testGetAccountCollateralValue() public depositedWEth {
+        uint256 collateralValue = yde.getAccountCollateralValue(user);
+        uint256 expectedCollateralValue = yde.getUsdValue(wEth, AMOUNT_COLLATERAL);
+
+        assertEq(collateralValue, expectedCollateralValue);
     }
 }

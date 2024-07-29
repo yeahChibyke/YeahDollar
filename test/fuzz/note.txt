@@ -1,0 +1,2 @@
+What are the invariants (properties that must hold true) of this project?
+- 

@@ -12,7 +12,7 @@ contract TestYeahDollar is Test {
     address owner;
     address receiver;
 
-    function setUp() public {
+    function setUp() external {
         yd = new YeahDollar();
 
         owner = yd.owner();

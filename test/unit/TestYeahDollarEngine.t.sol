@@ -31,6 +31,9 @@ contract TestYeahDollarEngine is Test {
     uint256 constant MIN_HEALTH_FACTOR = 1e18;
     uint256 constant LIQUIDATION_THRESHOLD = 50;
 
+    address[] tokenAddresses;
+    address[] priceFeedAddresses;
+
     address user = makeAddr("user");
 
     address ethUsdPriceFeed;
@@ -43,7 +46,7 @@ contract TestYeahDollarEngine is Test {
     address public liquidator = makeAddr("liquidator");
     uint256 public collateralToCover = 20 ether;
 
-    function setUp() public {
+    function setUp() external {
         yde = new YeahDollarEngine(tokenAddresses, priceFeedAddresses, address(yd));
         deployer = new DeployYeahDollar();
         (yd, yde, helperConfig) = deployer.run();
@@ -54,9 +57,6 @@ contract TestYeahDollarEngine is Test {
     }
 
     // ---------------------------< CONSTRUCTOR TESTS
-
-    address[] tokenAddresses;
-    address[] priceFeedAddresses;
 
     function testRevertIfTokenAndPriceFeedLengthsMismatch() public {
         tokenAddresses.push(wEth);

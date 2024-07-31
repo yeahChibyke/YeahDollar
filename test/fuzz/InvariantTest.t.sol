@@ -28,15 +28,15 @@ contract InvariantTest is StdInvariant, Test {
         targetContract(address(yde));
     }
 
-    // function invariant_protocolMustHaveMoreValueThanTotalSupplyOfYDMinted() public view {
-    //     // get the value of all the collateral in the protocol and compare it to the value of the total supply of YD minted
-    //     uint256 totalSupplyOfYDMinted = yd.totalSupply();
-    //     uint256 totalWEthDeposited = IERC20(wEth).balanceOf(address(yde));
-    //     uint256 totalWBtcDeposited = IERC20(wBtc).balanceOf(address(yde));
+    function invariant_protocolMustHaveMoreValueThanTotalSupplyOfYDMinted() public view {
+        // get the value of all the collateral in the protocol and compare it to the value of the total supply of YD minted
+        uint256 totalSupplyOfYDMinted = yd.totalSupply();
+        uint256 totalWEthDeposited = IERC20(wEth).balanceOf(address(yde));
+        uint256 totalWBtcDeposited = IERC20(wBtc).balanceOf(address(yde));
 
-    //     uint256 wEthValueInUsd = yde.getUsdValue(wEth, totalWEthDeposited);
-    //     uint256 wBtcValueInUsd = yde.getUsdValue(wBtc, totalWBtcDeposited);
+        uint256 wEthValueInUsd = yde.getUsdValue(wEth, totalWEthDeposited);
+        uint256 wBtcValueInUsd = yde.getUsdValue(wBtc, totalWBtcDeposited);
 
-    //     assert(wEthValueInUsd + wBtcValueInUsd > totalSupplyOfYDMinted);
-    // }
+        assert(wEthValueInUsd + wBtcValueInUsd > totalSupplyOfYDMinted);
+    }
 }

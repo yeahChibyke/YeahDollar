@@ -19,7 +19,7 @@ contract TestYeahDollar is Test {
         receiver = address(this);
     }
 
-    function testConstructor() public view {
+    function testConstructor() public {
         assertEq(yd.name(), "YeahDollar");
         assertEq(yd.symbol(), "Y$");
     }

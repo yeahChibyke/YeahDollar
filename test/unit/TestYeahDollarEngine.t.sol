@@ -568,7 +568,7 @@ contract TestYeahDollarEngine is Test {
         assert(ydAddress == address(yd));
     }
 
-    function testGetLiquidationPrecision() public view {
+    function testGetLiquidationPrecision() public {
         uint256 expectedLiquidationPrecision = 100;
         uint256 actualLiquidationPrecision = yde.getLiquidationPrecision();
 

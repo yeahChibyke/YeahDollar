@@ -23,7 +23,7 @@ contract InvariantTest is StdInvariant, Test {
     function setUp() external {
         deployer = new DeployYeahDollar();
         (yd, yde, helperConfig) = deployer.run();
-        (, , wEth, wBtc, ) = helperConfig.activeNetworkConfig();
+        (,, wEth, wBtc,) = helperConfig.activeNetworkConfig();
 
         targetContract(address(yde));
     }

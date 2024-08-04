@@ -10,12 +10,14 @@ import {YeahDollar} from "../../src/YeahDollar.sol";
 import {DeployYeahDollar} from "../../script/DeployYeahDollar.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Handler} from "./Handler.t.sol";
 
-contract InvariantTest is StdInvariant, Test {
+contract InvariantTests is StdInvariant, Test {
     YeahDollar yd;
     YeahDollarEngine yde;
     DeployYeahDollar deployer;
     HelperConfig helperConfig;
+    Handler handler;
 
     address wEth;
     address wBtc;
@@ -25,7 +27,8 @@ contract InvariantTest is StdInvariant, Test {
         (yd, yde, helperConfig) = deployer.run();
         (,, wEth, wBtc,) = helperConfig.activeNetworkConfig();
 
-        targetContract(address(yde));
+        handler = new Handler(yde, yd);
+        targetContract(address(handler));
     }
 
     function invariant_protocolMustHaveMoreValueThanTotalSupplyOfYDMinted() public view {

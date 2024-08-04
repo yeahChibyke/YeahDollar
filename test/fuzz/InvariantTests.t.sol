@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 // This will contain our invariants (properties of our system that should never fail)
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {YeahDollarEngine} from "../../src/YeahDollarEngine.sol";
 import {YeahDollar} from "../../src/YeahDollar.sol";
@@ -15,17 +15,18 @@ import {Handler} from "./Handler.t.sol";
 contract InvariantTests is StdInvariant, Test {
     YeahDollar yd;
     YeahDollarEngine yde;
-    DeployYeahDollar deployer;
     HelperConfig helperConfig;
     Handler handler;
 
+    address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
     address wEth;
     address wBtc;
 
     function setUp() external {
-        deployer = new DeployYeahDollar();
+        DeployYeahDollar deployer = new DeployYeahDollar();
         (yd, yde, helperConfig) = deployer.run();
-        (,, wEth, wBtc,) = helperConfig.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, wEth, wBtc,) = helperConfig.activeNetworkConfig();
 
         handler = new Handler(yde, yd);
         targetContract(address(handler));

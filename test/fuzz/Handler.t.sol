@@ -11,7 +11,7 @@ contract Handler is Test {
     YeahDollar yd;
     YeahDollarEngine yde;
 
-    constructor (YeahDollarEngine _yde, YeahDollar _yd) {
+    constructor(YeahDollarEngine _yde, YeahDollar _yd) {
         yde = _yde;
         yd = _yd;
     }

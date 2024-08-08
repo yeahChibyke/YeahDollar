@@ -41,11 +41,6 @@ contract InvariantTests is StdInvariant, Test {
         uint256 wBtcValueInUsd = yde.getUsdValue(wBtc, totalWBtcDeposited);
         uint256 sum = wEthValueInUsd + wBtcValueInUsd;
 
-        console2.log("This is the value of wEth in usd: ", wEthValueInUsd);
-        console2.log("This is the value of wBtc in usd: ", wBtcValueInUsd);
-        console2.log("This is the total supply of YD minted: ", totalSupplyOfYDMinted);
-        console2.log("This is the sum: ", sum);
-
         assert(sum >= totalSupplyOfYDMinted);
     }
 }

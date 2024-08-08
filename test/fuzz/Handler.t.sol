@@ -38,6 +38,17 @@ contract Handler is Test {
         vm.stopPrank();
     }
 
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        uint256 maxCollateralThatUserCanRedeem = yde.getCollateralBalanceOfUser(address(collateral), msg.sender); // In the YD engine,this particular function, in the order of parameter input, address of user (msg.sender in this case) comes before token (address(colateral)). But, if I write getCollateralBalanceOfUser(msg.sender, address(collateral)), test fails. And if I switch the order of paramter input in the getCollateralBalanceOfUser() function in YD engine, the test also fails. Why????
+        amountCollateral = bound(amountCollateral, 0, maxCollateralThatUserCanRedeem);
+        if (amountCollateral == 0) {
+            return;
+        }
+
+        yde.redeemCollateral(address(collateral), amountCollateral);
+    }
+
     // >---------> HELPER FUNCTIONS
     function _getCollateralFromSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
         if (collateralSeed % 2 == 0) return wEth;

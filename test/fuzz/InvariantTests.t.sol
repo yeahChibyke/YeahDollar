@@ -41,6 +41,34 @@ contract InvariantTests is StdInvariant, Test {
         uint256 wBtcValueInUsd = yde.getUsdValue(wBtc, totalWBtcDeposited);
         uint256 sum = wEthValueInUsd + wBtcValueInUsd;
 
+        console2.log("This is the value of wEth in Usd: ", wEthValueInUsd);
+        console2.log("This is the value of wBtc in Usd: ", wBtcValueInUsd);
+        console2.log("This is the value of the sum in Usd: ", sum);
+        console2.log("This is the total supply of YD minted: ", totalSupplyOfYDMinted);
+        console2.log("This is the number of times the mint function was called: ", handler.numberOfTimesMintIsCalled());
+
         assert(sum >= totalSupplyOfYDMinted);
+    }
+
+    function invariant_gettersShouldNotRevert() public view{
+        yde.getPrecision();
+        yde.getAdditionalFeedPrecision();
+        yde.getLiquidationThreshold();
+        yde.getLiquidationBonus();
+        yde.getLiquidationPrecision();
+        yde.getMinHealthFactor();
+        yde.getCollateralTokens();
+        yde.getYD();
+        yde.getTokenAmountFromUsd(wEth, 50);
+        yde.getTokenAmountFromUsd(wBtc, 50);
+        yde.getAccountInformation(msg.sender);
+        yde.getAccountCollateralValue(msg.sender);
+        yde.getUsdValue(wEth, 50);
+        yde.getUsdValue(wBtc, 50);
+        yde.getCollateralBalanceOfUser(wEth, msg.sender);
+        yde.getCollateralBalanceOfUser(wBtc, msg.sender);
+        yde.getCollateralTokenPriceFeed(wEth);
+        yde.getCollateralTokenPriceFeed(wBtc);
+        yde.getHealthFactor(msg.sender);
     }
 }

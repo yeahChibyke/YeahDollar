@@ -15,6 +15,11 @@ contract Handler is Test {
 
     uint256 constant MAX_DEPOSIT_SIZE = type(uint96).max;
 
+    // Gasper(Ghost) variables
+    uint256 public numberOfTimesMintIsCalled;
+
+    address[] public usersWithDepositedCollateral;
+
     constructor(YeahDollar _yd, YeahDollarEngine _yde) {
         yd = _yd;
         yde = _yde;
@@ -36,16 +41,23 @@ contract Handler is Test {
         collateral.approve(address(yde), amountCollateral);
         yde.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+
+        // Will double push if the same address is pushed twice
+        usersWithDepositedCollateral.push(msg.sender);
     }
 
-    function mintYd(uint256 amountToMint) public {
-        (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(msg.sender);
+    function mintYd(uint256 amountToMint, uint256 addressSeed) public {
+        if (usersWithDepositedCollateral.length == 0) return;
+        address sender = usersWithDepositedCollateral[addressSeed % usersWithDepositedCollateral.length];
+        (uint256 totalYDMinted, uint256 collateralValueInUsd) = yde.getAccountInformation(sender);
         int256 maxYdThatCanBeMinted = (int256(collateralValueInUsd) / 2) - int256(totalYDMinted);
         if (maxYdThatCanBeMinted < 0) return;
         amountToMint = bound(amountToMint, 0, uint256(maxYdThatCanBeMinted));
         if (amountToMint == 0) return;
-        vm.prank(msg.sender);
+        vm.prank(sender);
         yde.mintYD(amountToMint);
+
+        numberOfTimesMintIsCalled++;
     }
 
     function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {

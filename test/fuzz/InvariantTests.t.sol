@@ -50,7 +50,7 @@ contract InvariantTests is StdInvariant, Test {
         assert(sum >= totalSupplyOfYDMinted);
     }
 
-    function invariant_gettersShouldNotRevert() public view{
+    function invariant_gettersShouldNotRevert() public view {
         yde.getPrecision();
         yde.getAdditionalFeedPrecision();
         yde.getLiquidationThreshold();

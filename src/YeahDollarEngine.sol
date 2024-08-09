@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity 0.8.19;
-// pragma solidity >=0.6.2 <0.9.0;
 
 // ---------------------------< IMPORTS
 import {YeahDollar} from "./YeahDollar.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "./library/OracleLib.sol";
 
 /// @title YeahDollarEngine YDE
 /// @author Chukwubuike Victory Chime
@@ -29,8 +29,11 @@ contract YeahDollarEngine is ReentrancyGuard {
     error YeahDollarEngine__HealthFactorIsHealthy();
     error YeahDollarEngine__HealthFactorNotImproved();
 
+    // ---------------------------< TYPES
+    using OracleLib for AggregatorV3Interface;
     // ---------------------------< STATE VARIABLES
     // >------< CONSTANTS >-----<
+
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
@@ -285,7 +288,7 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     function _getUsdValue(address token, uint256 amount) private view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 answer,,,) = priceFeed.latestRoundData();
+        (, int256 answer,,,) = priceFeed.staleDataCheck();
         // Most USD pairs have 8 decimals, so we will assume they all do
         // We want to have everything in terms of wei, so we add 10 zeros at the end
         return ((uint256(answer) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
@@ -323,7 +326,7 @@ contract YeahDollarEngine is ReentrancyGuard {
 
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 answer,,,) = priceFeed.latestRoundData();
+        (, int256 answer,,,) = priceFeed.staleDataCheck();
         return (usdAmountInWei * PRECISION) / (uint256(answer) * ADDITIONAL_FEED_PRECISION);
     }
 

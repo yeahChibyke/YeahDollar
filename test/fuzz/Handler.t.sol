@@ -5,6 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {YeahDollar} from "../../src/YeahDollar.sol";
 import {YeahDollarEngine} from "../../src/YeahDollarEngine.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     YeahDollar yd;
@@ -20,6 +21,9 @@ contract Handler is Test {
 
     address[] public usersWithDepositedCollateral;
 
+    MockV3Aggregator public ethUsdPriceFeed;
+    MockV3Aggregator public btcUsdPriceFeed;
+
     constructor(YeahDollar _yd, YeahDollarEngine _yde) {
         yd = _yd;
         yde = _yde;
@@ -27,6 +31,9 @@ contract Handler is Test {
         address[] memory collateralTokens = yde.getCollateralTokens();
         wEth = ERC20Mock(collateralTokens[0]);
         wBtc = ERC20Mock(collateralTokens[1]);
+
+        ethUsdPriceFeed = MockV3Aggregator(yde.getCollateralTokenPriceFeed(address(wEth)));
+        btcUsdPriceFeed = MockV3Aggregator(yde.getCollateralTokenPriceFeed(address(wBtc)));
     }
 
     /**
@@ -70,6 +77,15 @@ contract Handler is Test {
 
         yde.redeemCollateral(address(collateral), amountCollateral);
     }
+
+    /**
+     * @dev This modafucka breaks the invariant test suite!!!
+     * @notice The system breaks if the price of collateral drops
+     */
+    // function updateCollateralPrice(uint96 newPrice) public {
+    //     int256 intNewPrice = int256(uint256(newPrice));
+    //     ethUsdPriceFeed.updateAnswer(intNewPrice);
+    // }
 
     // >---------> HELPER FUNCTIONS
     function _getCollateralFromSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
